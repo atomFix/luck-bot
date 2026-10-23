@@ -1,0 +1,4 @@
+import {KeychainSecrets} from './app/dist/src/secrets.js';import {readFile} from 'node:fs/promises';import {homedir} from 'node:os';import {join} from 'node:path';
+const secrets=new KeychainSecrets();const names=['provider/deepseek','provider/minimax','provider/dashscope'];
+try{const config=JSON.parse(await readFile(join(homedir(),'Library/Application Support/Round Eyes Companion/settings.json'),'utf8'));for(const d of config.devices??[])if(/^roundeyes-[a-f0-9]{12}$/.test(d.device_id)&&/^[a-f0-9]{16}$/.test(d.controller_id))names.push(`device/${d.device_id}/${d.controller_id}`);}catch(error){if(error.code!=='ENOENT')throw Error('settings_invalid');}
+for(const name of names)await secrets.delete(name);console.log('Companion credentials removed from Keychain. Device-side authorization should be revoked before uninstall.');

@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {PairingDecoder} from '../src/device/usb-pair.js';
+test('pairing parser tolerates split lines and ignores logs while bounding frame size',()=>{const decoder=new PairingDecoder();assert.deepEqual(decoder.feed('I boot log\nREYE/1 {"type":"pairing.pen'),[]);assert.deepEqual(decoder.feed('ding"}\n'),[{type:'pairing.pending'}]);assert.throws(()=>decoder.feed('x'.repeat(5000)),/serial_size/);});

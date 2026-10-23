@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "transport": "stdio",
+  "tools": [
+    "list_devices",
+    "get_status",
+    "set_reaction",
+    "semantic_input"
+  ],
+  "device_listing": "passed",
+  "note": "No provider or device command invoked"
+}

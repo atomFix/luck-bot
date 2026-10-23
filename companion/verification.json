@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-24",
+  "overall": "implemented-awaiting-physical-pairing-and-voice-acceptance",
+  "checks": {
+    "host_tests": {
+      "status": "passed",
+      "count": 41,
+      "note": "Full suite passed after final Keychain has fix; tsc passed"
+    },
+    "native_keychain": {
+      "status": "passed",
+      "note": "Metadata-only presence query; three credentials migrated to installed signed helper and equality verified privately; native sentinel tests passed"
+    },
+    "providers": {
+      "status": "passed",
+      "artifact": "provider-verification.json",
+      "note": "6 DeepSeek reactions, 1 MiniMax TTS, 1 synthetic ASR; not physical voice acceptance"
+    },
+    "dashscope": {
+      "status": "pending",
+      "note": "Independent profile and registry interface implemented; deployment adapter not verified"
+    },
+    "firmware_build": {
+      "status": "passed",
+      "note": "Final build and protocol/pairing/session/audio/layers suites passed; original eyes six native suites passed"
+    },
+    "first_flash": {
+      "status": "passed",
+      "sha256": "4bd027869f6de4065d97126d433454cf7ba491ca2c05bdfbee979f175b161eb4",
+      "slot": "ota_1",
+      "offset": "0x700000"
+    },
+    "discovery": {
+      "status": "partial",
+      "device_id": "roundeyes-2884855ca144",
+      "host": "192.168.31.225",
+      "port": 8443,
+      "note": "First image mDNS succeeded; final installed app discovery returned empty twice. TCP reachable. Manual IP prepared; mDNS reliability unresolved."
+    },
+    "render_smoke": {
+      "status": "passed",
+      "fps": 26,
+      "note": "Final image passive idle logs 26.0–26.3 FPS; no panic observed in bounded capture"
+    },
+    "physical_pairing": {
+      "status": "pending",
+      "note": "Waiting for user BOOT confirmation; timed windows expired"
+    },
+    "device_security_matrix": {
+      "status": "pending"
+    },
+    "physical_microphone_pipeline": {
+      "status": "pending"
+    },
+    "ten_turn_soak": {
+      "status": "pending"
+    },
+    "board_speaker_acoustics": {
+      "status": "pending",
+      "note": "Amplifier installation unconfirmed"
+    },
+    "package": {
+      "status": "passed",
+      "note": "Final package rebuilt; ad-hoc codesign and file manifest passed; previous temp install/upgrade/rollback/uninstall passed",
+      "sha256": "4817ea4ec81f49173287dd3fc8bb7ff653d7cfac9848348d1af16212e42397fa"
+    },
+    "actual_install": {
+      "status": "passed",
+      "note": "Updated ~/Applications app preserving .previous; native launcher opened authenticated UI; three configured statuses visible; bundled CLI status succeeded. Actual logout/login not tested."
+    },
+    "final_review": {
+      "status": "passed-with-documented-limits",
+      "note": "One independent final review completed; all 3 Important findings reproduced/fixed with tests. No second review. Hardware/security/voice/soak acceptance remains pending."
+    },
+    "public_distribution": {
+      "status": "pending",
+      "note": "Out of scope; no notarization or public relay"
+    },
+    "final_flash": {
+      "status": "passed",
+      "sha256": "f48cdd82733f916803b610a822f9821c77fd6bd69f04069313e13cdfd7fa428f",
+      "bytes": 3585456,
+      "slot": "ota_1",
+      "offset": "0x700000",
+      "note": "Live OTA re-read confirmed selection; esptool hash verified; application slot only"
+    },
+    "secret_scan": {
+      "status": "passed",
+      "providers_checked": 3,
+      "files_scanned": 232,
+      "leaks": 0
+    },
+    "streaming_reply": {
+      "status": "passed",
+      "artifact": "reply-verification.json"
+    }
+  }
+}

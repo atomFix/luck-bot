@@ -1,0 +1,387 @@
+--- a/main/CMakeLists.txt
++++ b/main/CMakeLists.txt
+@@ -304,6 +304,11 @@
+                              )
+ endif()
+ 
++set(COMPANION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../companion")
++list(APPEND SOURCES "${COMPANION_DIR}/protocol.cc" "${COMPANION_DIR}/pairing.cc" "${COMPANION_DIR}/session.cc" "${COMPANION_DIR}/identity.cc" "${COMPANION_DIR}/audio.cc" "${COMPANION_DIR}/server.cc")
++# Keep the existing upstream protocol.h first; companion sources include their own local header.
++list(APPEND INCLUDE_DIRS "${COMPANION_DIR}")
++
+ idf_component_register(SRCS ${SOURCES}
+                     EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
+                     INCLUDE_DIRS ${INCLUDE_DIRS}
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -1,4 +1,5 @@
+ #include "application.h"
++#include "server.h"
+ #if CONFIG_ROUND_EYES_CHARACTER
+ #include "animation_signals.h"
+ #endif
+@@ -106,43 +107,7 @@
+         retry_delay = 10; // 重置重试延迟时间
+ 
+         if (ota.HasNewVersion()) {
+-            Alert(Lang::Strings::OTA_UPGRADE, Lang::Strings::UPGRADING, "download", Lang::Sounds::OGG_UPGRADE);
+-
+-            vTaskDelay(pdMS_TO_TICKS(3000));
+-
+-            SetDeviceState(kDeviceStateUpgrading);
+-            
+-            std::string message = std::string(Lang::Strings::NEW_VERSION) + ota.GetFirmwareVersion();
+-            display->SetChatMessage("system", message.c_str());
+-
+-            board.SetPowerSaveMode(false);
+-            audio_service_.Stop();
+-            vTaskDelay(pdMS_TO_TICKS(1000));
+-
+-            bool upgrade_success = ota.StartUpgrade([display](int progress, size_t speed) {
+-                std::thread([display, progress, speed]() {
+-                    char buffer[32];
+-                    snprintf(buffer, sizeof(buffer), "%d%% %uKB/s", progress, speed / 1024);
+-                    display->SetChatMessage("system", buffer);
+-                }).detach();
+-            });
+-
+-            if (!upgrade_success) {
+-                // Upgrade failed, restart audio service and continue running
+-                ESP_LOGE(TAG, "Firmware upgrade failed, restarting audio service and continuing operation...");
+-                audio_service_.Start(); // Restart audio service
+-                board.SetPowerSaveMode(true); // Restore power save mode
+-                Alert(Lang::Strings::ERROR, Lang::Strings::UPGRADE_FAILED, "circle_xmark", Lang::Sounds::OGG_EXCLAMATION);
+-                vTaskDelay(pdMS_TO_TICKS(3000));
+-                // Continue to normal operation (don't break, just fall through)
+-            } else {
+-                // Upgrade success, reboot immediately
+-                ESP_LOGI(TAG, "Firmware upgrade successful, rebooting...");
+-                display->SetChatMessage("system", "Upgrade successful, rebooting...");
+-                vTaskDelay(pdMS_TO_TICKS(1000)); // Brief pause to show message
+-                Reboot();
+-                return; // This line will never be reached after reboot
+-            }
++            ESP_LOGW(TAG, "Cloud firmware update available; install reviewed Companion firmware through the owner update procedure");
+         }
+ 
+         // No new version, mark the current version as valid
+@@ -209,6 +174,7 @@
+ }
+ 
+ void Application::Alert(const char* status, const char* message, const char* emotion, const std::string_view& sound) {
++    companion::Critical(true);
+     ESP_LOGW(TAG, "Alert [%s] %s: %s", emotion, status, message);
+     auto display = Board::GetInstance().GetDisplay();
+     display->SetStatus(status);
+@@ -220,6 +186,7 @@
+ }
+ 
+ void Application::DismissAlert() {
++    companion::Critical(false);
+     if (device_state_ == kDeviceStateIdle) {
+         auto display = Board::GetInstance().GetDisplay();
+         display->SetStatus(Lang::Strings::STANDBY);
+@@ -229,6 +196,7 @@
+ }
+ 
+ void Application::ToggleChatState() {
++    if (companion::HandleToggle()) return;
+     if (device_state_ == kDeviceStateActivating) {
+         SetDeviceState(kDeviceStateIdle);
+         return;
+@@ -270,6 +238,7 @@
+ }
+ 
+ void Application::StartListening() {
++    if (companion::Enabled()) { companion::OnWake(); return; }
+     if (device_state_ == kDeviceStateActivating) {
+         SetDeviceState(kDeviceStateIdle);
+         return;
+@@ -328,8 +297,16 @@
+     });
+ }
+ 
++void Application::EnterCompanionMode() {
++    audio_service_.EnableVoiceProcessing(false);
++    if (protocol_ && protocol_->IsAudioChannelOpened()) protocol_->CloseAudioChannel();
++    if (protocol_ && !companion::Enabled()) protocol_->Start();
++    SetDeviceState(kDeviceStateIdle);
++}
++
+ void Application::Start() {
+     auto& board = Board::GetInstance();
++    companion::InitializeMode();
+     SetDeviceState(kDeviceStateStarting);
+ 
+     /* Setup the display */
+@@ -372,7 +349,8 @@
+ 
+     // Check for new firmware version or get the MQTT broker address
+     Ota ota;
+-    CheckNewVersion(ota);
++    if (!companion::Enabled()) CheckNewVersion(ota);
++    else ota.MarkCurrentVersionValid();
+ 
+     // Initialize the protocol
+     display->SetStatus(Lang::Strings::LOADING_PROTOCOL);
+@@ -390,15 +368,17 @@
+     }
+ 
+     protocol_->OnConnected([this]() {
++        if (companion::Enabled()) return;
+         DismissAlert();
+     });
+ 
+     protocol_->OnNetworkError([this](const std::string& message) {
++        if (companion::Enabled()) return;
+         last_error_message_ = message;
+         xEventGroupSetBits(event_group_, MAIN_EVENT_ERROR);
+     });
+     protocol_->OnIncomingAudio([this](std::unique_ptr<AudioStreamPacket> packet) {
+-        if (device_state_ == kDeviceStateSpeaking) {
++        if (!companion::Enabled() && device_state_ == kDeviceStateSpeaking) {
+             audio_service_.PushPacketToDecodeQueue(std::move(packet));
+         }
+     });
+@@ -410,6 +390,7 @@
+         }
+     });
+     protocol_->OnAudioChannelClosed([this, &board]() {
++        if (companion::Enabled()) return;
+         board.SetPowerSaveMode(true);
+         Schedule([this]() {
+             auto display = Board::GetInstance().GetDisplay();
+@@ -418,6 +399,7 @@
+         });
+     });
+     protocol_->OnIncomingJson([this, display](const cJSON* root) {
++        if (companion::Enabled()) return;
+         // Parse JSON data
+         auto type = cJSON_GetObjectItem(root, "type");
+         if (strcmp(type->valuestring, "tts") == 0) {
+@@ -509,12 +491,13 @@
+             ESP_LOGW(TAG, "Unknown message type: %s", type->valuestring);
+         }
+     });
+-    bool protocol_started = protocol_->Start();
++    bool protocol_started = !companion::Enabled() && protocol_->Start();
+ 
+     // Print heap stats
+     SystemInfo::PrintHeapStats();
+     SetDeviceState(kDeviceStateIdle);
+ 
++    companion::Start();
+     has_server_time_ = ota.HasServerTime();
+     if (protocol_started) {
+         std::string message = std::string(Lang::Strings::VERSION) + ota.GetCurrentVersion();
+@@ -546,13 +529,14 @@
+             MAIN_EVENT_CLOCK_TICK |
+             MAIN_EVENT_ERROR, pdTRUE, pdFALSE, portMAX_DELAY);
+ 
+-        if (bits & MAIN_EVENT_ERROR) {
++        if ((bits & MAIN_EVENT_ERROR) && !companion::Enabled()) {
+             SetDeviceState(kDeviceStateIdle);
+             Alert(Lang::Strings::ERROR, last_error_message_.c_str(), "circle_xmark", Lang::Sounds::OGG_EXCLAMATION);
+         }
+ 
+         if (bits & MAIN_EVENT_SEND_AUDIO) {
+             while (auto packet = audio_service_.PopPacketFromSendQueue()) {
++                if (companion::Enabled()) continue;
+                 if (!protocol_->SendAudio(std::move(packet))) {
+                     break;
+                 }
+@@ -595,6 +579,7 @@
+ }
+ 
+ void Application::OnWakeWordDetected() {
++    if (companion::Enabled()) { companion::OnWake(); return; }
+     if (!protocol_) {
+         return;
+     }
+@@ -652,6 +637,7 @@
+     round_eyes::AnimationSignals::Instance().PublishDeviceState(static_cast<round_eyes::InputState>(state), esp_timer_get_time()/1000);
+ #endif
+     
++    companion::Critical(state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring || state == kDeviceStateUpgrading || state == kDeviceStateActivating || state == kDeviceStateFatalError || state == kDeviceStateAudioTesting);
+     clock_ticks_ = 0;
+     auto previous_state = device_state_;
+     device_state_ = state;
+@@ -681,6 +667,7 @@
+             display->SetStatus(Lang::Strings::LISTENING);
+             display->SetEmotion("neutral");
+ 
++            if (companion::Enabled()) break;
+             // Make sure the audio processor is running
+             if (!audio_service_.IsAudioProcessorRunning()) {
+                 // Send the start listening command
+@@ -691,6 +678,11 @@
+             break;
+         case kDeviceStateSpeaking:
+             display->SetStatus(Lang::Strings::SPEAKING);
++            if (companion::Enabled()) {
++                audio_service_.EnableVoiceProcessing(false);
++                audio_service_.EnableWakeWordDetection(true);
++                break;
++            }
+ 
+             if (listening_mode_ != kListeningModeRealtime) {
+                 audio_service_.EnableVoiceProcessing(false);
+--- a/main/application.h
++++ b/main/application.h
+@@ -42,6 +42,7 @@
+     Application(const Application&) = delete;
+     Application& operator=(const Application&) = delete;
+ 
++    void EnterCompanionMode();
+     void Start();
+     void MainEventLoop();
+     DeviceState GetDeviceState() const { return device_state_; }
+--- a/main/audio/audio_service.cc
++++ b/main/audio/audio_service.cc
+@@ -1,4 +1,5 @@
+ #include "audio_service.h"
++#include "server.h"
+ #if CONFIG_ROUND_EYES_CHARACTER
+ #include "animation_signals.h"
+ #include <esp_timer.h>
+@@ -213,7 +214,7 @@
+ void AudioService::AudioInputTask() {
+     while (true) {
+         EventBits_t bits = xEventGroupWaitBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING |
+-            AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING,
++            AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING | AS_EVENT_COMPANION_CAPTURE,
+             pdFALSE, pdFALSE, portMAX_DELAY);
+ 
+         if (service_stopped_) {
+@@ -222,6 +223,18 @@
+         if (audio_input_need_warmup_) {
+             audio_input_need_warmup_ = false;
+             vTaskDelay(pdMS_TO_TICKS(120));
++            continue;
++        }
++
++        if (bits & AS_EVENT_COMPANION_CAPTURE) {
++            std::vector<int16_t> pcm;
++            if (ReadAudioData(pcm, 16000, 320)) {
++                if (codec_->input_channels() == 2) {
++                    for (size_t i=0; i<320; ++i) pcm[i]=pcm[i*2];
++                    pcm.resize(320);
++                }
++                companion::OnPcm(pcm.data(), pcm.size());
++            }
+             continue;
+         }
+ 
+@@ -292,6 +305,11 @@
+         audio_queue_cv_.notify_all();
+         lock.unlock();
+ 
++        if (task->companion_turn) {
++            if (task->companion_generation != companion_generation_.load()) continue;
++            if (task->companion_end && task->pcm.empty()) { companion::OnPlaybackEnd(task->companion_turn); continue; }
++            if (!companion::OnPlayback(task->companion_turn)) continue;
++        }
+         if (!codec_->output_enabled()) {
+             esp_timer_stop(audio_power_timer_);
+             esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
+@@ -301,6 +319,7 @@
+         round_eyes::AnimationSignals::Instance().PublishPlayback(task->pcm.data(), task->pcm.size(), esp_timer_get_time()/1000);
+ #endif
+         codec_->OutputData(task->pcm);
++        if (task->companion_end) companion::OnPlaybackEnd(task->companion_turn);
+ 
+         /* Update the last output time */
+         last_output_time_ = std::chrono::steady_clock::now();
+@@ -674,3 +693,24 @@
+         esp_timer_stop(audio_power_timer_);
+     }
+ }
++
++void AudioService::EnableCompanionCapture(bool enable) {
++    if (enable) {EnableVoiceProcessing(false); EnableWakeWordDetection(false); xEventGroupSetBits(event_group_, AS_EVENT_COMPANION_CAPTURE);}
++    else {xEventGroupClearBits(event_group_, AS_EVENT_COMPANION_CAPTURE); EnableWakeWordDetection(true);}
++}
++bool AudioService::PushCompanionPcm(const uint8_t* data, size_t bytes, uint32_t turn, bool end) {
++    if (!turn || bytes > 960 || bytes % 2) return false;
++    if (!bytes && !end) return true;
++    std::lock_guard<std::mutex> lock(audio_queue_mutex_);
++    if (audio_playback_queue_.size() >= 20) return false;
++    auto task = std::make_unique<AudioTask>(); task->timestamp=0;
++    task->companion_end=end; task->companion_turn=turn; task->companion_generation=companion_generation_.load();
++    task->pcm.resize(bytes/2); memcpy(task->pcm.data(),data,bytes);
++    audio_playback_queue_.push_back(std::move(task)); audio_queue_cv_.notify_all(); return true;
++}
++void AudioService::CancelCompanionPlayback() {
++    companion_generation_++;
++    std::lock_guard<std::mutex> lock(audio_queue_mutex_);
++    audio_playback_queue_.clear(); audio_decode_queue_.clear(); audio_encode_queue_.clear(); audio_send_queue_.clear();
++    audio_queue_cv_.notify_all();
++}
+--- a/main/audio/audio_service.h
++++ b/main/audio/audio_service.h
+@@ -2,6 +2,7 @@
+ #define AUDIO_SERVICE_H
+ 
+ #include <memory>
++#include <atomic>
+ #include <deque>
+ #include <condition_variable>
+ #include <chrono>
+@@ -49,6 +50,7 @@
+ #define AS_EVENT_AUDIO_TESTING_RUNNING      (1 << 0)
+ #define AS_EVENT_WAKE_WORD_RUNNING          (1 << 1)
+ #define AS_EVENT_AUDIO_PROCESSOR_RUNNING    (1 << 2)
++#define AS_EVENT_COMPANION_CAPTURE          (1 << 4)
+ #define AS_EVENT_PLAYBACK_NOT_EMPTY         (1 << 3)
+ 
+ struct AudioServiceCallbacks {
+@@ -69,6 +71,9 @@
+     AudioTaskType type;
+     std::vector<int16_t> pcm;
+     uint32_t timestamp;
++    bool companion_end = false;
++    uint32_t companion_turn = 0;
++    uint32_t companion_generation = 0;
+ };
+ 
+ struct DebugStatistics {
+@@ -106,8 +111,12 @@
+     void PlaySound(const std::string_view& sound);
+     bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
+     void ResetDecoder();
++    void EnableCompanionCapture(bool enable);
++    bool PushCompanionPcm(const uint8_t* data, size_t bytes, uint32_t turn, bool end = false);
++    void CancelCompanionPlayback();
+ 
+ private:
++    std::atomic<uint32_t> companion_generation_{0};
+     AudioCodec* codec_ = nullptr;
+     AudioServiceCallbacks callbacks_;
+     std::unique_ptr<AudioProcessor> audio_processor_;
+--- a/main/boards/bread-compact-wifi-lcd/compact_wifi_board_lcd.cc
++++ b/main/boards/bread-compact-wifi-lcd/compact_wifi_board_lcd.cc
+@@ -3,6 +3,7 @@
+ #include "display/lcd_display.h"
+ #include "system_reset.h"
+ #include "application.h"
++#include "server.h"
+ #include "button.h"
+ #include "config.h"
+ #include "mcp_server.h"
+@@ -140,6 +141,7 @@
+  
+     void InitializeButtons() {
+         boot_button_.OnClick([this]() {
++            if (companion::ConfirmPairing()) return;
+             auto& app = Application::GetInstance();
+             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
+                 ResetWifiConfiguration();
+--- a/main/idf_component.yml
++++ b/main/idf_component.yml
+@@ -1,5 +1,6 @@
+ ## IDF Component Manager Manifest File
+ dependencies:
++  espressif/mdns: ==1.8.2
+   waveshare/esp_lcd_sh8601: 1.0.2
+   espressif/esp_lcd_ili9341: ==1.2.0
+   espressif/esp_lcd_gc9a01: ==2.0.1

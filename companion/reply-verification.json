@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "model": "deepseek-flash",
+  "first_token_ms": 905,
+  "total_ms": 1083,
+  "characters": 18,
+  "logical_requests": 1
+}

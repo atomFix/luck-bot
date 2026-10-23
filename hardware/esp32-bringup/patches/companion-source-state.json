@@ -1,0 +1,34 @@
+{
+  "CMakeLists.txt": {
+    "baseline": "0fc1257ab1daf2aad29bc945030227e7366d714c2aa400813b507f81d9d13df6",
+    "current": "0fc1257ab1daf2aad29bc945030227e7366d714c2aa400813b507f81d9d13df6"
+  },
+  "main/CMakeLists.txt": {
+    "baseline": "c0b6ceec19fa6ad1e2c72a9a7f1793e898610128f86c1d810e4c81d13fa311e3",
+    "current": "95912187b7a84febac940c56027f08b6377e78ac3924f1a56fba71e7c462c9ae"
+  },
+  "main/application.cc": {
+    "baseline": "d229bb958c34938c0d81587069378bba61fdbbee21109763356a57516d3ac16b",
+    "current": "8a170ffadab315569692f20794d794bd0a49cd4b0d0d492d59af4fa3ac32cb31"
+  },
+  "main/application.h": {
+    "baseline": "fb1d52e53cd20d89cb2bc9470105aeb834b964ce93758cebd7aac4bacab9e921",
+    "current": "738e7b79b8869a91febd753809b37d37a56305413914edc087a18e33e47f0d1e"
+  },
+  "main/audio/audio_service.cc": {
+    "baseline": "99961d387678fb8f451779469124a172073f1037a53575d1d39c32298f96858d",
+    "current": "81e470158727e2c2e7188a718dd1fcc51fe58a65ee24fa75c9e9c23390e33462"
+  },
+  "main/audio/audio_service.h": {
+    "baseline": "36f9c7ef6f5b33d94fb355fb83e4f2f456e4bd33cbfbd6770db08ae7391ccefe",
+    "current": "96674df441468b846ada2de162f619a37b400f5b3bac6ad2e7adb82a8caa1dbb"
+  },
+  "main/boards/bread-compact-wifi-lcd/compact_wifi_board_lcd.cc": {
+    "baseline": "881824707a0c7f8c23109842fe6851ca57696f3e58c4d2a03aefd9219a3d9509",
+    "current": "5b4406ace75cded75d08b2634be432d0090071a6dc23bfa6eb463d596d2869a0"
+  },
+  "main/idf_component.yml": {
+    "baseline": "fcbffb8b8601833a1ad547e19c79ba32acdbb4611b11c8a4b783de4a9f531504",
+    "current": "3b8d480031bc9075c2ec691299c8e18ef06d87bbe8c74381ebb456ddf55a3084"
+  }
+}

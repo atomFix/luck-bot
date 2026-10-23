@@ -1,0 +1,211 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,6 +9,7 @@
+ # Add this line to disable the specific warning
+ add_compile_options(-Wno-missing-field-initializers)
+ 
++set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../character")
+ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+ project(xiaozhi)
+ 
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -1,4 +1,7 @@
+ #include "application.h"
++#if CONFIG_ROUND_EYES_CHARACTER
++#include "animation_signals.h"
++#endif
+ #include "board.h"
+ #include "display.h"
+ #include "system_info.h"
+@@ -449,6 +452,9 @@
+             auto text = cJSON_GetObjectItem(root, "text");
+             if (cJSON_IsString(text)) {
+                 ESP_LOGI(TAG, ">> %s", text->valuestring);
++#if CONFIG_ROUND_EYES_CHARACTER
++                round_eyes::AnimationSignals::Instance().NotifyRecognizedText(text->valuestring[0] != '\0', esp_timer_get_time()/1000);
++#endif
+                 Schedule([this, display, message = std::string(text->valuestring)]() {
+                     display->SetChatMessage("user", message.c_str());
+                 });
+@@ -641,6 +647,10 @@
+     if (device_state_ == state) {
+         return;
+     }
++#if CONFIG_ROUND_EYES_CHARACTER
++    static_assert(kDeviceStateFatalError == static_cast<int>(round_eyes::InputState::FatalError));
++    round_eyes::AnimationSignals::Instance().PublishDeviceState(static_cast<round_eyes::InputState>(state), esp_timer_get_time()/1000);
++#endif
+     
+     clock_ticks_ = 0;
+     auto previous_state = device_state_;
+@@ -788,4 +798,4 @@
+ 
+ void Application::PlaySound(const std::string_view& sound) {
+     audio_service_.PlaySound(sound);
+-}
+\ No newline at end of file
++}
+--- a/main/audio/audio_service.cc
++++ b/main/audio/audio_service.cc
+@@ -1,4 +1,8 @@
+ #include "audio_service.h"
++#if CONFIG_ROUND_EYES_CHARACTER
++#include "animation_signals.h"
++#include <esp_timer.h>
++#endif
+ #include <esp_log.h>
+ #include <cstring>
+ 
+@@ -293,6 +297,9 @@
+             esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
+             codec_->EnableOutput(true);
+         }
++#if CONFIG_ROUND_EYES_CHARACTER
++        round_eyes::AnimationSignals::Instance().PublishPlayback(task->pcm.data(), task->pcm.size(), esp_timer_get_time()/1000);
++#endif
+         codec_->OutputData(task->pcm);
+ 
+         /* Update the last output time */
+@@ -666,4 +673,4 @@
+     if (!codec_->input_enabled() && !codec_->output_enabled()) {
+         esp_timer_stop(audio_power_timer_);
+     }
+-}
+\ No newline at end of file
++}
+--- a/main/display/lcd_display.h
++++ b/main/display/lcd_display.h
+@@ -8,6 +8,9 @@
+ #include <font_emoji.h>
+ 
+ #include <atomic>
++#if CONFIG_ROUND_EYES_CHARACTER
++#include "round_eyes_ui.h"
++#endif
+ 
+ // Theme color structure
+ struct ThemeColors {
+@@ -37,6 +40,9 @@
+ 
+     DisplayFonts fonts_;
+     ThemeColors current_theme_;
++#if CONFIG_ROUND_EYES_CHARACTER
++    round_eyes::RoundEyesUi* round_eyes_ = nullptr;
++#endif
+ 
+     void SetupUI();
+     virtual bool Lock(int timeout_ms = 0) override;
+@@ -51,6 +57,11 @@
+     virtual void SetEmotion(const char* emotion) override;
+     virtual void SetIcon(const char* icon) override;
+     virtual void SetPreviewImage(const lv_img_dsc_t* img_dsc) override;
++#if CONFIG_ROUND_EYES_CHARACTER
++    virtual void SetChatMessage(const char* role, const char* content) override;
++    virtual void ShowNotification(const char* notification, int duration_ms = 3000) override;
++    using Display::ShowNotification;
++#endif
+ #if CONFIG_USE_WECHAT_MESSAGE_STYLE
+     virtual void SetChatMessage(const char* role, const char* content) override; 
+ #endif  
+--- a/main/display/lcd_display.cc
++++ b/main/display/lcd_display.cc
+@@ -290,6 +290,21 @@
+ }
+ 
+ LcdDisplay::~LcdDisplay() {
++#if CONFIG_ROUND_EYES_CHARACTER
++    DisplayLockGuard lock(this);
++    delete round_eyes_;
++    round_eyes_ = nullptr;
++    // Stop the base notification callback before deleting its label hierarchy.
++    if (notification_timer_) {
++        esp_timer_stop(notification_timer_);
++        esp_timer_delete(notification_timer_);
++        notification_timer_ = nullptr;
++    }
++    network_label_ = notification_label_ = status_label_ = mute_label_ = battery_label_ = emotion_label_ = nullptr;
++    chat_message_label_ = nullptr;
++    if (low_battery_popup_) { lv_obj_delete(low_battery_popup_); low_battery_popup_ = nullptr; }
++    low_battery_label_ = nullptr;
++#endif
+     // 然后再清理 LVGL 对象
+     if (content_ != nullptr) {
+         lv_obj_del(content_);
+@@ -825,6 +840,11 @@
+     lv_obj_set_style_text_color(low_battery_label_, lv_color_white(), 0);
+     lv_obj_center(low_battery_label_);
+     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
++#if CONFIG_ROUND_EYES_CHARACTER
++    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
++    round_eyes_ = new round_eyes::RoundEyesUi(screen, container_, status_label_, chat_message_label_, fonts_.text_font);
++    lv_obj_move_foreground(low_battery_popup_);
++#endif
+ }
+ 
+ void LcdDisplay::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
+@@ -856,6 +876,9 @@
+ #endif
+ 
+ void LcdDisplay::SetEmotion(const char* emotion) {
++#if CONFIG_ROUND_EYES_CHARACTER
++    if (round_eyes_) { DisplayLockGuard lock(this); round_eyes_->SetEmotion(emotion); return; }
++#endif
+     struct Emotion {
+         const char* icon;
+         const char* text;
+@@ -917,7 +940,19 @@
+         lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
+     }
+ #endif
++}
++
++#if CONFIG_ROUND_EYES_CHARACTER
++void LcdDisplay::SetChatMessage(const char* role, const char* content) {
++    Display::SetChatMessage(role, content);
++    DisplayLockGuard lock(this);
++    if (round_eyes_) round_eyes_->Chat(role, content);
+ }
++void LcdDisplay::ShowNotification(const char* notification, int duration_ms) {
++    DisplayLockGuard lock(this);
++    if (round_eyes_) round_eyes_->Notify(notification, duration_ms);
++}
++#endif
+ 
+ void LcdDisplay::SetIcon(const char* icon) {
+     DisplayLockGuard lock(this);
+@@ -937,6 +972,9 @@
+ }
+ 
+ void LcdDisplay::SetTheme(const std::string& theme_name) {
++#if CONFIG_ROUND_EYES_CHARACTER
++    if (round_eyes_) return;
++#endif
+     DisplayLockGuard lock(this);
+     
+     if (theme_name == "dark" || theme_name == "DARK") {
+--- a/main/display/display.cc
++++ b/main/display/display.cc
+@@ -15,6 +15,7 @@
+ #define TAG "Display"
+ 
+ Display::Display() {
++#if !CONFIG_ROUND_EYES_CHARACTER
+     // Notification timer
+     esp_timer_create_args_t notification_timer_args = {
+         .callback = [](void *arg) {
+@@ -29,6 +30,7 @@
+         .skip_unhandled_events = false,
+     };
+     ESP_ERROR_CHECK(esp_timer_create(&notification_timer_args, &notification_timer_));
++#endif
+ 
+     // Create a power management lock
+     auto ret = esp_pm_lock_create(ESP_PM_APB_FREQ_MAX, 0, "display_update", &pm_lock_);
+@@ -238,4 +240,4 @@
+         SetChatMessage("system", "");
+         SetEmotion("neutral");
+     }
+-}
+\ No newline at end of file
++}

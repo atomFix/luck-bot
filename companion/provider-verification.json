@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-23",
+  "calls": {
+    "deepseek": 6,
+    "tts": 1,
+    "asr": 1
+  },
+  "deepseek": [
+    {
+      "status": "passed",
+      "emotion": "happy",
+      "hold_ms": 1200,
+      "ms": 846
+    },
+    {
+      "status": "passed",
+      "emotion": "relaxed",
+      "hold_ms": 1000,
+      "ms": 891
+    },
+    {
+      "status": "passed",
+      "emotion": "sad",
+      "hold_ms": 2000,
+      "ms": 674
+    },
+    {
+      "status": "passed",
+      "emotion": "funny",
+      "hold_ms": 1200,
+      "ms": 878
+    },
+    {
+      "status": "passed",
+      "emotion": "confused",
+      "hold_ms": 1200,
+      "ms": 628
+    },
+    {
+      "status": "passed",
+      "emotion": "thinking",
+      "hold_ms": 1200,
+      "ms": 672
+    }
+  ],
+  "tts": {
+    "status": "passed",
+    "bytes": 101426,
+    "ms": 1186,
+    "model": "speech-2.8-turbo"
+  },
+  "asr": {
+    "status": "passed",
+    "nonempty": true,
+    "ms": 1024,
+    "source": "synthetic TTS roundtrip, not physical microphone"
+  },
+  "dashscope": {
+    "status": "pending",
+    "reason": "adapter and deployment capabilities not verified"
+  },
+  "deepseek_model": "deepseek-flash"
+}

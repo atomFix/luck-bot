@@ -1,0 +1,4 @@
+* text=auto eol=lf
+# Exact-byte hashes are used when applying the firmware patches.
+hardware/esp32-bringup/patches/baseline/** -text
+hardware/esp32-bringup/patches/companion-baseline/** -text

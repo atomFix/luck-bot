@@ -1,0 +1,683 @@
+{
+  "generatedAt": "2026-10-23T14:01:17.400241+00:00",
+  "firmware": {
+    "path": "firmware/xiaozhi-1.9.4-s3-round-eyes.bin",
+    "bytes": 3523616,
+    "sha256": "a3f06cd723d384316bda9e55f46df0113434a417ecb07dc0fa356ef73e467ba2",
+    "elfSha256": "5597adc2ef0147d1b99d213759c004c8e7890e445fbe24d328f5944ce9cdcbcf",
+    "applicationOffset": "0x700000",
+    "lvglTimerPeriodMs": 30,
+    "refreshTimerPeriodMs": 10,
+    "targetFps": 25,
+    "renderer": "contour-rgb565",
+    "canvasBytes": 61440,
+    "speechModelChanged": false,
+    "partitionTableChanged": false
+  },
+  "hostTests": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-host-tests.log"
+    ]
+  },
+  "build": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-build-raster-final.log",
+      "logs/eyes-build-off-raster-final.log",
+      "logs/eyes-build-captions-raster-final.log",
+      "logs/eyes-image-info.log"
+    ]
+  },
+  "flash": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-flash-raster.log",
+      "logs/eyes-ota-selection.log"
+    ]
+  },
+  "boot": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-raster-boot-soak.log"
+    ],
+    "note": "GC9A01, retained Wi-Fi, MQTT and wake task observed; passive capture begins during early startup."
+  },
+  "voice": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-raster-boot-soak.log"
+    ],
+    "completedRoundTrips": 11,
+    "note": "Round trip requires recognized input, assistant response, then listening/idle; acoustic speaker output is separate."
+  },
+  "visual": {
+    "status": "passed",
+    "evidence": [
+      "../../output/xiaozhi-character-design/eyes-preview.png",
+      "../../output/xiaozhi-character-design/eyes-motion.mp4"
+    ],
+    "note": "Operator confirmed black seams disappeared and animation is now close to desktop preview, normal. Physical critical-prompt layout remains a separate pending check.",
+    "previousImageFailed": true,
+    "seams": "passed",
+    "motion": "passed",
+    "scope": "Normal round-eye display, internal seams and motion smoothness"
+  },
+  "soak": {
+    "status": "passed",
+    "evidence": [
+      "logs/eyes-raster-boot-soak.log"
+    ],
+    "observedSeconds": 645.29,
+    "diagnosticSamples": 63,
+    "statistics": [
+      {
+        "update_fps": 27.3,
+        "refresh_fps": 28.4,
+        "refresh_max_us": 37828,
+        "update_avg_us": 9543,
+        "update_max_us": 12792,
+        "heap": 7869612,
+        "min_heap": 7845784
+      },
+      {
+        "update_fps": 26.8,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7405,
+        "update_avg_us": 9159,
+        "update_max_us": 13071,
+        "heap": 7868872,
+        "min_heap": 7845784
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.8,
+        "refresh_max_us": 7294,
+        "update_avg_us": 9102,
+        "update_max_us": 12905,
+        "heap": 7869352,
+        "min_heap": 7845784
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.6,
+        "refresh_max_us": 8509,
+        "update_avg_us": 9002,
+        "update_max_us": 12929,
+        "heap": 7868872,
+        "min_heap": 7845784
+      },
+      {
+        "update_fps": 25.5,
+        "refresh_fps": 25.9,
+        "refresh_max_us": 24327,
+        "update_avg_us": 8664,
+        "update_max_us": 17614,
+        "heap": 7750500,
+        "min_heap": 7744988
+      },
+      {
+        "update_fps": 25.5,
+        "refresh_fps": 25.9,
+        "refresh_max_us": 19263,
+        "update_avg_us": 8547,
+        "update_max_us": 24467,
+        "heap": 7760728,
+        "min_heap": 7739664
+      },
+      {
+        "update_fps": 25.7,
+        "refresh_fps": 26.0,
+        "refresh_max_us": 20190,
+        "update_avg_us": 8910,
+        "update_max_us": 25455,
+        "heap": 7761572,
+        "min_heap": 7739640
+      },
+      {
+        "update_fps": 25.7,
+        "refresh_fps": 26.2,
+        "refresh_max_us": 19465,
+        "update_avg_us": 8536,
+        "update_max_us": 26816,
+        "heap": 7759264,
+        "min_heap": 7739272
+      },
+      {
+        "update_fps": 25.5,
+        "refresh_fps": 25.6,
+        "refresh_max_us": 21656,
+        "update_avg_us": 8574,
+        "update_max_us": 13256,
+        "heap": 7760724,
+        "min_heap": 7739272
+      },
+      {
+        "update_fps": 25.6,
+        "refresh_fps": 26.0,
+        "refresh_max_us": 19623,
+        "update_avg_us": 8672,
+        "update_max_us": 20973,
+        "heap": 7750540,
+        "min_heap": 7739220
+      },
+      {
+        "update_fps": 25.5,
+        "refresh_fps": 25.8,
+        "refresh_max_us": 15643,
+        "update_avg_us": 8667,
+        "update_max_us": 23342,
+        "heap": 7760736,
+        "min_heap": 7739216
+      },
+      {
+        "update_fps": 25.3,
+        "refresh_fps": 25.4,
+        "refresh_max_us": 8365,
+        "update_avg_us": 8921,
+        "update_max_us": 23272,
+        "heap": 7761744,
+        "min_heap": 7739216
+      },
+      {
+        "update_fps": 25.4,
+        "refresh_fps": 25.5,
+        "refresh_max_us": 7098,
+        "update_avg_us": 8967,
+        "update_max_us": 20973,
+        "heap": 7760764,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 25.1,
+        "refresh_fps": 25.1,
+        "refresh_max_us": 12061,
+        "update_avg_us": 8521,
+        "update_max_us": 20270,
+        "heap": 7760764,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 25.0,
+        "refresh_fps": 25.0,
+        "refresh_max_us": 14531,
+        "update_avg_us": 8931,
+        "update_max_us": 20396,
+        "heap": 7760764,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 25.0,
+        "refresh_fps": 25.0,
+        "refresh_max_us": 16545,
+        "update_avg_us": 8721,
+        "update_max_us": 20415,
+        "heap": 7761276,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 25.1,
+        "refresh_fps": 25.1,
+        "refresh_max_us": 7103,
+        "update_avg_us": 8280,
+        "update_max_us": 20049,
+        "heap": 7761276,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 25.3,
+        "refresh_fps": 25.3,
+        "refresh_max_us": 15262,
+        "update_avg_us": 9419,
+        "update_max_us": 21380,
+        "heap": 7759300,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 24.9,
+        "refresh_fps": 25.0,
+        "refresh_max_us": 7522,
+        "update_avg_us": 8335,
+        "update_max_us": 20247,
+        "heap": 7761756,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 8204,
+        "update_avg_us": 8138,
+        "update_max_us": 15001,
+        "heap": 7767652,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 8092,
+        "update_avg_us": 9146,
+        "update_max_us": 12460,
+        "heap": 7766960,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7501,
+        "update_avg_us": 9209,
+        "update_max_us": 12314,
+        "heap": 7767616,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7069,
+        "update_avg_us": 9087,
+        "update_max_us": 12526,
+        "heap": 7767128,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.2,
+        "refresh_fps": 27.2,
+        "refresh_max_us": 8015,
+        "update_avg_us": 9465,
+        "update_max_us": 13154,
+        "heap": 7767616,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 8398,
+        "update_avg_us": 9091,
+        "update_max_us": 13238,
+        "heap": 7767092,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7922,
+        "update_avg_us": 9129,
+        "update_max_us": 12756,
+        "heap": 7767616,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.6,
+        "refresh_max_us": 8325,
+        "update_avg_us": 8963,
+        "update_max_us": 12616,
+        "heap": 7767092,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.8,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7482,
+        "update_avg_us": 9079,
+        "update_max_us": 12342,
+        "heap": 7767100,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.6,
+        "refresh_max_us": 8538,
+        "update_avg_us": 9059,
+        "update_max_us": 12947,
+        "heap": 7767616,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.2,
+        "refresh_fps": 27.3,
+        "refresh_max_us": 7550,
+        "update_avg_us": 9466,
+        "update_max_us": 12172,
+        "heap": 7767136,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 7596,
+        "update_avg_us": 9021,
+        "update_max_us": 12427,
+        "heap": 7767488,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.5,
+        "refresh_fps": 26.5,
+        "refresh_max_us": 7585,
+        "update_avg_us": 8924,
+        "update_max_us": 12698,
+        "heap": 7767100,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.8,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7869,
+        "update_avg_us": 9147,
+        "update_max_us": 13036,
+        "heap": 7767616,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7539,
+        "update_avg_us": 9123,
+        "update_max_us": 12757,
+        "heap": 7767136,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.6,
+        "refresh_max_us": 7983,
+        "update_avg_us": 9005,
+        "update_max_us": 12615,
+        "heap": 7767652,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 8803,
+        "update_avg_us": 9434,
+        "update_max_us": 12593,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 9794,
+        "update_avg_us": 9144,
+        "update_max_us": 13053,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 7653,
+        "update_avg_us": 9096,
+        "update_max_us": 12578,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7112,
+        "update_avg_us": 9095,
+        "update_max_us": 12758,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 8059,
+        "update_avg_us": 9210,
+        "update_max_us": 12517,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 8857,
+        "update_avg_us": 8944,
+        "update_max_us": 12498,
+        "heap": 7767140,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.3,
+        "refresh_fps": 27.3,
+        "refresh_max_us": 7748,
+        "update_avg_us": 9450,
+        "update_max_us": 12446,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.1,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 8869,
+        "update_avg_us": 9183,
+        "update_max_us": 12453,
+        "heap": 7767140,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 8551,
+        "update_avg_us": 9087,
+        "update_max_us": 12472,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7563,
+        "update_avg_us": 9126,
+        "update_max_us": 13159,
+        "heap": 7767104,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7610,
+        "update_avg_us": 9077,
+        "update_max_us": 12960,
+        "heap": 7767628,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.9,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 7286,
+        "update_avg_us": 9121,
+        "update_max_us": 13059,
+        "heap": 7767140,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.2,
+        "refresh_fps": 27.2,
+        "refresh_max_us": 7306,
+        "update_avg_us": 9489,
+        "update_max_us": 12918,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.8,
+        "refresh_fps": 26.8,
+        "refresh_max_us": 7866,
+        "update_avg_us": 9156,
+        "update_max_us": 13132,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.6,
+        "refresh_fps": 26.6,
+        "refresh_max_us": 8585,
+        "update_avg_us": 9040,
+        "update_max_us": 12933,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 7541,
+        "update_avg_us": 9010,
+        "update_max_us": 12930,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.8,
+        "refresh_max_us": 8627,
+        "update_avg_us": 9078,
+        "update_max_us": 13113,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.1,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 7545,
+        "update_avg_us": 9193,
+        "update_max_us": 12360,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 8640,
+        "update_avg_us": 9440,
+        "update_max_us": 12876,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7720,
+        "update_avg_us": 9176,
+        "update_max_us": 12581,
+        "heap": 7767628,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.0,
+        "refresh_max_us": 7674,
+        "update_avg_us": 9115,
+        "update_max_us": 13027,
+        "heap": 7767112,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.8,
+        "refresh_max_us": 8765,
+        "update_avg_us": 9101,
+        "update_max_us": 12891,
+        "heap": 7767112,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.8,
+        "refresh_fps": 26.9,
+        "refresh_max_us": 8332,
+        "update_avg_us": 9021,
+        "update_max_us": 12701,
+        "heap": 7767628,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.1,
+        "refresh_fps": 27.2,
+        "refresh_max_us": 7668,
+        "update_avg_us": 9070,
+        "update_max_us": 12884,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.1,
+        "refresh_fps": 27.2,
+        "refresh_max_us": 7580,
+        "update_avg_us": 9418,
+        "update_max_us": 12225,
+        "heap": 7767664,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 7631,
+        "update_avg_us": 9007,
+        "update_max_us": 12266,
+        "heap": 7767148,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 26.7,
+        "refresh_fps": 26.7,
+        "refresh_max_us": 7056,
+        "update_avg_us": 9158,
+        "update_max_us": 12410,
+        "heap": 7767628,
+        "min_heap": 7738840
+      },
+      {
+        "update_fps": 27.0,
+        "refresh_fps": 27.1,
+        "refresh_max_us": 8587,
+        "update_avg_us": 9165,
+        "update_max_us": 13202,
+        "heap": 7767148,
+        "min_heap": 7738840
+      }
+    ],
+    "note": "LVGL refresh events measured; no optical panel measurement. Initial full refresh may be slower."
+  },
+  "speaker": {
+    "status": "pending",
+    "evidence": [],
+    "note": "MAX98357A assembled amplifier module not installed; audible output unverified."
+  },
+  "criticalPrompts": {
+    "status": "pending",
+    "evidence": [
+      "tests/signals_test.cc"
+    ],
+    "note": "Critical-state routing covered by host tests; physical disconnection/upgrade/long-text layout not manually exercised."
+  },
+  "review": {
+    "importantFindings": 4,
+    "importantFixed": 4,
+    "minor": "Separate asymmetric RMS attack/release filter deferred; critically damped eye-height parameters smooth the12% modulation."
+  },
+  "previousRuns": [
+    {
+      "log": "logs/eyes-boot-soak.log",
+      "status": "failed",
+      "reason": "newlib-nano %llu formatting crash; baseline restored, format corrected and reflashed."
+    },
+    {
+      "log": "logs/eyes-final-boot-soak.log",
+      "status": "failed",
+      "scope": "Triangle renderer ran over10minutes and22voice rounds without panic, but operator photo failed visual acceptance: internal AA seams and16–17FPS."
+    },
+    {
+      "log": "logs/eyes-raster-40ms-smoke.log",
+      "status": "passed",
+      "scope": "Short native-raster smoke only,20.4–20.6refreshFPS; superseded cadence."
+    },
+    {
+      "log": "logs/eyes-raster-30ms-default-refresh-smoke.log",
+      "status": "passed",
+      "scope": "Short native-raster smoke only,21–23refreshFPS due to default33ms refresh deadline; superseded cadence."
+    }
+  ]
+}

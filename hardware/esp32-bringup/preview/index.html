@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圆眼 · 25 种神态</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f2ec;color:#242522;font:15px system-ui,-apple-system,sans-serif}main{max-width:1150px;margin:48px auto;padding:0 28px}small{color:#777b72;letter-spacing:2px}h1{font-size:38px;font-weight:550;letter-spacing:-1px;margin:12px 0}p{color:#73766e}section{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:34px}.stage{background:#e8e7df;border-radius:24px;padding:34px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px}.large{width:320px;height:320px;border-radius:50%;box-shadow:0 16px 32px #0002}canvas{background:#000;border-radius:50%}.actual{width:240px;height:240px}.row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 24px}button,select{font:inherit;border:1px solid #d9dcd2;background:#fff;border-radius:9px;padding:9px 12px;color:inherit;cursor:pointer}button.on{background:#202c25;color:#fff;border-color:#202c25}h2{font-size:15px;font-weight:600;margin:24px 0 12px}.poses{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.poses button{text-align:left;font-size:13px;padding:10px}output{font:12px ui-monospace,monospace;color:#767b73}input{accent-color:#2f5740}@media(max-width:800px){section{grid-template-columns:1fr}.large{width:280px;height:280px}}
+</style>
+<main><small>ROUND EYES / ESP32</small><h1>一个圆，两只眼，25 种神态。</h1><p>固定黑色圆脸，所有情绪都交给眼睛。</p>
+<section><div class="stage"><canvas id="large" class="large" width="480" height="480"></canvas><output id="state">连接模型…</output><canvas id="actual" class="actual" width="240" height="240"></canvas><small>原始尺寸 · 240 × 240</small></div>
+<div><div class="row"><button id="auto">自动编排</button><button id="pause">暂停画面</button><button id="demo">完整对话演示</button></div><h2>25 个基础眼型</h2><div class="poses" id="poses"></div>
+<h2>云端情绪</h2><select id="emotion"></select><h2>对话状态</h2><div class="row" id="behaviors"></div><label>模拟说话能量 <input id="energy" type="range" min="0" max="1" step=".01" value="0"></label><p>桌面预览，设备帧率另测。这里的操作不控制开发板。</p></div></section></main>
+<script>
+const names=['自然注视','专注睁眼','柔和笑眼','好奇圆眼','慵懒半闭','俏皮眨眼','放松短眼','认真皱眼','抬眼思索','大小眼疑问','竖眼聆听','开怀大笑','侧看寻找','安静闭眼','半信半疑','自信注视','委屈眼睑','兴奋期待','惊讶大小眼','温柔关注','明亮笑眼','震惊睁大','困倦眯眼','轻轻单眨','害羞低看'];
+const $=id=>document.getElementById(id);const send=s=>fetch('/control',{method:'POST',body:s});let paused=false,demo=0;
+names.forEach((name,i)=>{const b=document.createElement('button');b.textContent=String(i).padStart(2,'0')+' '+name;b.onclick=()=>{send('pose '+i);document.querySelectorAll('.poses button').forEach(x=>x.classList.toggle('on',x===b));};$('poses').append(b);});
+for(const key of ['neutral','happy','laughing','funny','sad','angry','crying','loving','embarrassed','surprised','shocked','thinking','winking','cool','relaxed','delicious','kissy','confident','sleepy','silly','confused']){const o=document.createElement('option');o.value=o.textContent=key;$('emotion').append(o);}
+$('emotion').onchange=e=>{send('pose auto');send('emotion '+e.target.value);};
+['idle','waking','listening','waiting','speaking','reconnecting'].forEach((key,i)=>{const b=document.createElement('button');b.textContent=['待机','唤醒','聆听','等待','说话','重连'][i];b.onclick=()=>{send('pose auto');send('behavior '+key);};$('behaviors').append(b);});
+$('auto').onclick=()=>{send('pose auto');document.querySelectorAll('.poses button').forEach(b=>b.classList.remove('on'));};
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'继续画面':'暂停画面';};
+$('demo').onclick=async()=>{let run=++demo;await send('pose auto');for(const key of ['idle','waking','listening','waiting','speaking','idle']){if(run!==demo)return;await send('behavior '+key);await new Promise(r=>setTimeout(r,2200));}};
+setInterval(()=>{if(Number($('energy').value)>0)send('energy '+$('energy').value);},80);
+async function render(){try{const f=await(await fetch('/frame')).json();if(!paused&&f.eyes){for(const id of ['large','actual']){const c=$(id),ctx=c.getContext('2d');ctx.setTransform(c.width/240,0,0,c.height/240,0,0);ctx.fillStyle='#000';ctx.fillRect(0,0,240,240);ctx.fillStyle='#fff';for(const eye of f.eyes){ctx.beginPath();eye.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}}$('state').textContent=String(f.pose).padStart(2,'0')+' '+names[f.pose]+' / '+f.behavior;}}catch{}setTimeout(render,40);}render();
+</script>

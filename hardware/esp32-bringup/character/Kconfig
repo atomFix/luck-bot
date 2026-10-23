@@ -1,0 +1,10 @@
+menu "Round eyes character"
+config ROUND_EYES_CHARACTER
+ bool "Animated round eyes on GC9A01"
+ depends on IDF_TARGET_ESP32S3 && BOARD_TYPE_BREAD_COMPACT_WIFI_LCD && LCD_GC9A01_240X240 && !USE_WECHAT_MESSAGE_STYLE
+ default y
+config ROUND_EYES_CAPTIONS
+ bool "Show two-line dialogue captions"
+ depends on ROUND_EYES_CHARACTER
+ default n
+endmenu

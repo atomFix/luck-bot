@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:https';import {mkdtemp,readFile,rm} from 'node:fs/promises';import {execFileSync} from 'node:child_process';import {join} from 'node:path';import {tmpdir} from 'node:os';import {createHash,X509Certificate} from 'node:crypto';import {WebSocketServer} from 'ws';import {pinnedSocket} from '../src/device/pinned-transport.js';
+test('pinned TLS rejects a replacement certificate at the same LAN address before authentication',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'re-tls-'));let server:ReturnType<typeof createServer>|undefined;let wss:WebSocketServer|undefined;
+ try{const certs=[];for(const n of ['a','b']){execFileSync('/usr/bin/openssl',['req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:prime256v1','-nodes','-keyout',join(dir,n+'.key'),'-out',join(dir,n+'.pem'),'-subj','/CN=roundeyes-123456789abc','-days','1'],{stdio:'ignore'});certs.push({key:await readFile(join(dir,n+'.key')),cert:await readFile(join(dir,n+'.pem'),'utf8')});}
+ let messages=0;server=createServer(certs[0]!);wss=new WebSocketServer({server});wss.on('connection',socket=>socket.on('message',()=>messages++));await new Promise<void>(r=>server!.listen(0,'127.0.0.1',r));const addr=server.address() as any;
+ const record={device_id:'roundeyes-123456789abc',host:'127.0.0.1',port:addr.port,controller_id:'0011223344556677',certificate:certs[0]!.cert,fingerprint:createHash('sha256').update(new X509Certificate(certs[0]!.cert).raw).digest('hex')};
+ const good=pinnedSocket(record);await new Promise<void>((r,j)=>{good.once('open',r);good.once('error',j);});good.terminate();await new Promise<void>(r=>wss!.close(()=>r()));await new Promise<void>(r=>server!.close(()=>r()));
+ server=createServer(certs[1]!);wss=new WebSocketServer({server});wss.on('connection',socket=>socket.on('message',()=>messages++));await new Promise<void>(r=>server!.listen(addr.port,'127.0.0.1',r));
+ const bad=pinnedSocket(record);await new Promise<void>((r,j)=>{bad.once('error',()=>r());bad.once('open',()=>j(new Error('accepted replacement certificate')));});assert.equal(messages,0);
+ }finally{await new Promise<void>(r=>wss?wss.close(()=>r()):r());await new Promise<void>(r=>server?server.close(()=>r()):r());await rm(dir,{recursive:true,force:true});}
+});

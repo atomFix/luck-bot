@@ -255,6 +255,17 @@
         "muted",
       ),
     );
+    host.append(node("h3","麦克风录音"));
+    if(d.audio){
+      const player=node("audio");player.controls=true;player.preload="none";player.src="/api/audio?turn_id="+encodeURIComponent(id);player.setAttribute("aria-label","本轮用户录音");
+      const download=node("a","下载 WAV 录音","text-link");download.href=player.src;download.download=`${id}.wav`;
+      const info=node("p",`${ms(d.audio.duration_ms)} · ${d.audio.sample_rate} Hz · 单声道 PCM · ${(d.audio.bytes/1024).toFixed(1)} KB`,"muted");
+      player.addEventListener("error",()=>{info.textContent="录音暂时无法播放，请刷新后台后再试。";});
+      host.append(player,info,download,node("p","这是开发板送来的语音片段，包含少量起句前声音与句尾静音，可与下方识别文字对照。","muted"));
+    }else host.append(node("p",["ambient","voice"].includes(d.turn.mode)?"本轮没有已保存的录音：旧记录无法补录，也可能是当时未开启录音、片段未完成或已清理。":"本轮不是语音输入，没有麦克风录音。","muted"));
+    const asrSpan=d.spans.find(s=>["asr.local.done","asr.done"].includes(s.event));
+    const asrAttempt=d.attempts.find(a=>a.kind==="asr");
+    if(asrSpan||asrAttempt)host.append(node("p","语音识别模型："+(asrSpan?.meta?.model??asrAttempt?.actual_model??asrAttempt?.model??"此旧记录未采集模型标识"),"muted"));
     for (const [title, text] of [
       ["识别文字", d.turn.user_text ?? "未保存 / 未识别"],
       [
@@ -419,8 +430,10 @@
       if (name === "conversations") await conversations();
       if (name === "usage") await usage();
       if (name === "speakers") {speakerInitialized=false;await speakers();}
-      if (name === "settings")
-        $("record-text").checked = (await admin("privacy")).record_text;
+      if (name === "settings"){
+        const privacy=await admin("privacy");$("record-text").checked=privacy.record_text;$("record-audio").checked=privacy.record_audio;
+        $("audio-storage").textContent=`本地录音占用 ${((privacy.audio_bytes??0)/1024/1024).toFixed(2)} MB。关闭只停止之后的录音；已有录音可按日期清理。`;
+      }
     } catch (e) {
       fail(e);
     }
@@ -478,6 +491,10 @@
       $("record-text").checked = !$("record-text").checked;
       fail(e);
     }
+  };
+  $("record-audio").onchange=async()=>{
+    try{await admin("privacy",{record_audio:$("record-audio").checked});api.notify($("record-audio").checked?"已开启之后每轮的本地录音，可在对话详情回放。":"已关闭之后每轮的录音保存。");}
+    catch(e){$("record-audio").checked=!$("record-audio").checked;fail(e);}
   };
   $("clear-records").onclick = async () => {
     try {

@@ -108,6 +108,7 @@ export async function startCompanion(dir = DATA_DIR) {
     state: () => app.state(),
     credentialsChanged: () => app.resetServices(),
     admin: (op, input) => ledger.call(op, input),
+    audio:id=>ledger.call("audio",{id}),
     speaker:(op,input)=>app.speakerAction(op,input),
   });
   const initial=await settings.read();

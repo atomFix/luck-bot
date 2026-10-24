@@ -16,6 +16,7 @@ import { TurnManager } from "./turn.js";
 import { History } from "./history.js";
 import { wav16k } from "./utterance.js";
 type Options = {
+  asrModel?: string;
   brain: Brain;
   device: DeviceClient;
   asr: Asr;
@@ -138,6 +139,7 @@ export class VoicePipeline {
       event,
       turn: turn.id,
       duration_ms: Math.round(performance.now() - start),
+      ...(event==="asr.done"&&this.options.asrModel?{model:this.options.asrModel}:{}),
     });
   }
   private async process(

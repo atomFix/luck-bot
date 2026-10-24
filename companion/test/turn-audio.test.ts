@@ -1,0 +1,20 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{mkdtemp,rm}from'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';import{Ledger}from'../src/ledger/repository.js';import{TurnJournal}from'../src/ledger/journal.js';import{startLocalServer}from'../src/local/server.js';
+async function fixture(){const dir=await mkdtemp(join(tmpdir(),'turn-audio-'));const db=await Ledger.open(join(dir,'db'));return{dir,db,clean:async()=>{await db.close();await rm(dir,{recursive:true,force:true});}};}
+test('audio recording is opt in and persists exact PCM for ignored turns without including binary in detail',async()=>{
+ const f=await fixture();try{const journal=new TurnJournal(f.db);assert.equal((await f.db.call('privacy')).record_audio,false);const pcm=Uint8Array.from([0x34,0x12,0xfe,0xff]);
+ const a=await journal.run({mode:'ambient'},async()=>journal.recordAudio(pcm));assert.equal((await f.db.call('detail',{id:a.id})).audio,null);
+ await f.db.call('privacy',{record_audio:true});const id=await journal.create({mode:'ambient'});journal.recordAudio(pcm,id);await journal.finish(id,'ignored',new Error('speaker_unknown'));const d=await f.db.call('detail',{id});assert.equal(d.audio.bytes,4);assert.equal(d.audio.sample_rate,16000);assert.equal(d.audio.pcm,undefined);assert.deepEqual(Array.from((await f.db.call('audio',{id})).pcm),Array.from(pcm));
+ await f.db.call('privacy',{record_audio:false});const b=await journal.run({mode:'voice'},async()=>journal.recordAudio(pcm));assert.equal((await f.db.call('detail',{id:b.id})).audio,null);
+ }finally{await f.clean();}
+});
+test('audio playback is authenticated WAV, supports byte ranges and rejects invalid ranges',async()=>{
+ const s=await startLocalServer({secretStore:{get:async()=>null,set:async()=>{},delete:async()=>{}},actions:async()=>({}),audio:async id=>id==='turn-1'?{pcm:Uint8Array.from([0x34,0x12,0xfe,0xff])}:null});
+ try{const url=s.url+'/api/audio?turn_id=turn-1';assert.equal((await fetch(url)).status,403);const login=await fetch(s.url+'/api/bootstrap',{method:'POST',headers:{Origin:s.url,'Content-Type':'application/json'},body:JSON.stringify({token:s.bootstrap})});const cookie=login.headers.get('set-cookie')!.split(';')[0]!;
+ const all=await fetch(url,{headers:{Cookie:cookie}});assert.equal(all.headers.get('content-type'),'audio/wav');const wav=Buffer.from(await all.arrayBuffer());assert.equal(wav.toString('ascii',0,4),'RIFF');assert.equal(wav.readUInt32LE(24),16000);assert.deepEqual([...wav.subarray(44)],[0x34,0x12,0xfe,0xff]);
+ const part=await fetch(url,{headers:{Cookie:cookie,Range:'bytes=44-45'}});assert.equal(part.status,206);assert.equal(part.headers.get('content-range'),'bytes 44-45/48');assert.deepEqual([...new Uint8Array(await part.arrayBuffer())],[0x34,0x12]);assert.equal((await fetch(url,{headers:{Cookie:cookie,Range:'bytes=999-'}})).status,416);assert.equal((await fetch(s.url+'/api/audio?turn_id=missing',{headers:{Cookie:cookie}})).status,404);
+ }finally{await s.close();}
+});
+test('clearing turn content removes audio but keeps usage and legacy v2 migrates without losing records',async()=>{
+ const f=await fixture();let db=f.db;try{await db.call('beginTurn',{id:'old',mode:'ambient',started_at:1});await db.call('privacy',{record_audio:true});await db.call('saveAudio',{id:'old',pcm:new Uint8Array([1,0])});await db.call('patchTurn',{id:'old',status:'ignored'});const preview=await db.call('clear',{scope:'text',before:10});await db.call('clear',{scope:'text',before:10,confirm:preview.confirmation});assert.equal((await db.call('detail',{id:'old'})).audio,null);await db.close();const {DatabaseSync}=await import('node:sqlite');const raw=new DatabaseSync(join(f.dir,'db'));raw.exec("DROP TABLE turn_audio;DELETE FROM admin_settings WHERE key='record_audio';DELETE FROM schema_migrations WHERE id=3;PRAGMA user_version=2");raw.close();db=await Ledger.open(join(f.dir,'db'));assert.equal((await db.call('ready')).version,3);assert.equal((await db.call('detail',{id:'old'})).turn.status,'ignored');assert.equal((await db.call('privacy')).record_audio,false);
+ }finally{await db.close();await f.clean();}
+});

@@ -15,7 +15,7 @@ try {
   chmodSync(path, 0o600);
   db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000");
   const version = db.prepare("PRAGMA user_version").get().user_version;
-  if (version > 2) throw new Error("storage_future_schema");
+  if (version > 3) throw new Error("storage_future_schema");
   if (version < 1) {
     if (existed) {
       const backup = path + ".pre-v1-" + now();
@@ -37,6 +37,7 @@ try {
   if(version < 2) {
     db.exec(`BEGIN;CREATE TABLE model_payloads(attempt_id TEXT PRIMARY KEY REFERENCES provider_attempts(id) ON DELETE CASCADE,request_data TEXT,response_data TEXT);INSERT INTO schema_migrations VALUES(2,${now()});PRAGMA user_version=2;COMMIT;`);
   }
+  if(version < 3){db.exec(`BEGIN;CREATE TABLE turn_audio(turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,pcm BLOB NOT NULL,sample_rate INTEGER NOT NULL,duration_ms REAL NOT NULL);INSERT OR IGNORE INTO admin_settings VALUES('record_audio','false');INSERT INTO schema_migrations VALUES(3,${now()});PRAGMA user_version=3;COMMIT;`);}
   db.exec(
     "PRAGMA journal_mode=WAL; UPDATE turns SET status='interrupted',error='app_interrupted' WHERE status='running';UPDATE provider_attempts SET status='interrupted',error='usage_unknown' WHERE status='running';",
   );
@@ -64,6 +65,7 @@ const text = (x) => (x == null ? null : string(x, 8000));
 const recordText = () =>
   db.prepare("SELECT value FROM admin_settings WHERE key='record_text'").get()
     .value === "true";
+const recordAudio = () => db.prepare("SELECT value FROM admin_settings WHERE key='record_audio'").get().value === "true";
 function where(input) {
   const conditions = [],
     args = [];
@@ -168,11 +170,21 @@ function enrichTurn(turn) {
 }
 function execute(op, i) {
   if (initError) throw new Error(initError);
-  if (op === "ready") return { version: 2, record_text: recordText() };
+  if (op === "ready") return { version: 3, record_text: recordText() };
   if (op === "close") {
     db.close();
     return { ok: true };
   }
+  if(op === "saveAudio"){
+    identifier(i.id);
+    if(!recordAudio())return {stored:false};
+    if(!(i.pcm instanceof Uint8Array)||!i.pcm.length||i.pcm.length>960000||i.pcm.length%2)throw new Error("audio_size");
+    const turn=db.prepare("SELECT mode FROM turns WHERE id=?").get(i.id);
+    if(!turn||!["ambient","voice"].includes(turn.mode))throw new Error("audio_turn");
+    db.prepare("INSERT OR IGNORE INTO turn_audio VALUES(?,?,16000,?)").run(i.id,i.pcm,i.pcm.length/32);
+    return {stored:true};
+  }
+  if(op === "audio"){identifier(i.id);return db.prepare("SELECT pcm,sample_rate,duration_ms FROM turn_audio WHERE turn_id=?").get(i.id)??null;}
   if (op === "beginTurn") {
     identifier(i.id);
     string(i.mode, 30);
@@ -235,7 +247,7 @@ function execute(op, i) {
     identifier(i.turn_id);
     identifier(i.event);
     const meta = {};
-    for (const key of ["bytes", "code", "turn", "voiced_ms", "pcm_ms", "required_voiced_ms"])
+    for (const key of ["bytes", "code", "turn", "model", "voiced_ms", "pcm_ms", "required_voiced_ms"])
       if (i[key] != null)
         meta[key] =
           typeof i[key] === "number" ? integer(i[key]) : identifier(i[key]);
@@ -378,6 +390,7 @@ function execute(op, i) {
     if (!turn) throw new Error("turn_unknown");
     return {
       turn,
+      audio:db.prepare("SELECT length(pcm) as bytes,sample_rate,duration_ms FROM turn_audio WHERE turn_id=?").get(i.id)??null,
       spans: db
         .prepare("SELECT * FROM turn_spans WHERE turn_id=? ORDER BY rowid")
         .all(i.id)
@@ -513,7 +526,8 @@ function execute(op, i) {
       ).run(String(i.record_text));
       audit("privacy.changed", { record_text: i.record_text });
     }
-    return { record_text: recordText() };
+    if(i.record_audio!=null){if(typeof i.record_audio!=="boolean")throw new Error("ledger_input");db.prepare("UPDATE admin_settings SET value=? WHERE key='record_audio'").run(String(i.record_audio));audit("privacy.audio.changed",{record_audio:i.record_audio});}
+    return { record_text: recordText(),record_audio:recordAudio(),audio_bytes:db.prepare("SELECT coalesce(sum(length(pcm)),0) as bytes FROM turn_audio").get().bytes };
   }
   if (op === "audit") {
     const allowed = [
@@ -547,6 +561,7 @@ function execute(op, i) {
           "UPDATE turns SET user_text=NULL,reply_text=NULL WHERE started_at<? AND status!='running'",
         ).run(i.before);
       if(i.scope === "text") db.prepare("DELETE FROM model_payloads WHERE attempt_id IN (SELECT a.id FROM provider_attempts a JOIN turns t ON t.id=a.turn_id WHERE t.started_at<? AND t.status!='running')").run(i.before);
+      if(i.scope === "text")db.prepare("DELETE FROM turn_audio WHERE turn_id IN (SELECT id FROM turns WHERE started_at<? AND status!='running')").run(i.before);
       audit("records.cleared", { count, scope: i.scope });
       db.exec("COMMIT");
     } catch (e) {

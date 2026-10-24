@@ -76,6 +76,9 @@ export class TurnJournal {
       at_ms: Math.round(performance.now() - c.began),
     });
   }
+  recordAudio(pcm:Uint8Array,id=scope.getStore()?.id){
+    if(!id)return;const context=this.active.get(id);if(context)this.write(context,"saveAudio",{id,pcm});
+  }
   patch(data: Record<string, any>, id = scope.getStore()?.id) {
     if (!id) return;
     const c = this.active.get(id);

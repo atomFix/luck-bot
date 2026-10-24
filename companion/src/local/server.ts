@@ -1,6 +1,7 @@
+import {wav16k} from '../voice/utterance.js';
 import {createServer,type IncomingMessage} from 'node:http';import {readFile} from 'node:fs/promises';import {fileURLToPath} from 'node:url';import {randomBytes,timingSafeEqual} from 'node:crypto';import type {Secrets} from '../contracts.js';
 const safeEqual=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;speaker?:(op:string,input:any)=>Promise<any>;admin?:(op:string,input:any)=>Promise<any>}) {
+export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;speaker?:(op:string,input:any)=>Promise<any>;audio?:(id:string)=>Promise<{pcm:Uint8Array}|null>;admin?:(op:string,input:any)=>Promise<any>}) {
  const bootstrap=randomBytes(32).toString('hex'),session=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');const tokens=new Map([[bootstrap,Date.now()+60000]]);let url='';
  async function body(req:IncomingMessage){let size=0;const chunks:Buffer[]=[];for await(const b of req){size+=b.length;if(size>8192)throw new Error('body_size');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
  const server=createServer(async(req,res)=>{
@@ -15,6 +16,18 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
    if(path.startsWith('/api/')){
     const cookie=req.headers.cookie?.split(';').map(s=>s.trim()).find(s=>s.startsWith('re_session='))?.slice(11)??'';
     if(!safeEqual(cookie,session)){reply(403,{error:'forbidden'});return;}
+    if(req.method==='GET'&&path==='/api/audio'){
+     const id=new URL(req.url??'/',url).searchParams.get('turn_id');if(!id||! /^[a-zA-Z0-9_.:-]{1,160}$/.test(id)){reply(400,{error:'audio_id'});return;}
+     const clip=await options.audio?.(id);if(!clip){reply(404,{error:'audio_not_found'});return;}
+     const wav=Buffer.from(wav16k(clip.pcm));res.setHeader('Content-Type','audio/wav');res.setHeader('Accept-Ranges','bytes');
+     let start=0,end=wav.length-1;const range=req.headers.range;
+     if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);if(!match||(!match[1]&&!match[2])){res.statusCode=416;res.setHeader('Content-Range',`bytes */${wav.length}`);res.end();return;}
+      if(!match[1])start=Math.max(0,wav.length-Number(match[2]));else{start=Number(match[1]);if(match[2])end=Math.min(end,Number(match[2]));}
+      if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>end||start>=wav.length){res.statusCode=416;res.setHeader('Content-Range',`bytes */${wav.length}`);res.end();return;}
+      res.statusCode=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${wav.length}`);
+     }
+     res.setHeader('Content-Length',end-start+1);res.end(wav.subarray(start,end+1));return;
+    }
     if(req.method==='GET'&&path==='/api/session'){reply(200,{csrf});return;}
     if(req.method==='GET'&&path==='/api/state'){
      const credentials:Record<string,boolean>={};for(const name of ['deepseek','minimax','dashscope'])credentials[name]=options.secretStore.has ? await options.secretStore.has(`provider/${name}`) : !!await options.secretStore.get(`provider/${name}`);

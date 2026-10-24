@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-24",
+  "actual_asr": "zipformer-small-ctc-zh-int8-2025-04-01",
+  "asr_provider": "local sherpa-onnx CPU; configured MiniMax cloud ASR not selected",
+  "changed_asr_model": false,
+  "recording": {
+    "fresh_install_default": false,
+    "this_installation_enabled_by_user_request": true,
+    "format": "16000Hz mono16bit PCM in SQLite BLOB; WAV for playback/download",
+    "capture_point": "Complete ambient/wake utterance before speaker and rate gates",
+    "enrollment_recording": false,
+    "schema": 3
+  },
+  "checks": {
+    "tests_pass": 131,
+    "typescript": "pass",
+    "signed_bundle_manifest_and_native_probes": "pass",
+    "http": "Unauthenticated403; authorized WAV header and PCM exact;206byte range; invalid range416; absent clip404",
+    "privacy": "Disabled capture skipped; ignored clip retained when opted in; content cleanup deletes audio; v2->v3 preservation tested",
+    "integration": "Ambient unknown turn and wake unknown turn both keep recording when enabled without cloud initialization"
+  },
+  "physical_sample": {
+    "pcm_bytes": 200320,
+    "duration_ms": 6260,
+    "sample_rate": 16000,
+    "normalized_transcript_matches_requested_test_sentence": true,
+    "rms": 7118.1,
+    "peak": 32768,
+    "dc": 29.1,
+    "clipped_pct": 0.031,
+    "quality_limit": "Numeric metrics and one matching sentence do not establish all speech accuracy; no acoustic quality conclusion"
+  },
+  "browser": {
+    "actual_recording_played": true,
+    "player_readyState": 4,
+    "player_duration_seconds": 6.26,
+    "player_error": null,
+    "paused_after_test": true,
+    "model_and_transcript_visible": true,
+    "wav_download_link_visible": true
+  },
+  "upgrade_preservation": {
+    "old_turn_ids": "all retained",
+    "settings": "byte identical",
+    "encrypted_vault": "byte identical"
+  },
+  "limits": [
+    "Historical recordings cannot be reconstructed",
+    "Only fully captured utterances are available; interrupted/overlong clips may be absent",
+    "This feature diagnoses recognition; it does not claim ASR accuracy fixed",
+    "Local database recordings accumulate until user clears them"
+  ]
+}

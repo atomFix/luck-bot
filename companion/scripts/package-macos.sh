@@ -47,6 +47,7 @@ JS
 codesign --force --sign "$identity" "$app"
 codesign --verify --deep --strict "$app"
 "$app/Contents/Resources/node" scripts/verify-bundle.mjs "$app"
+node scripts/verify-sqlite-runtime.mjs "$app"
 cp scripts/install.sh scripts/uninstall.sh "$out/"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$out/RoundEyesCompanion-macos-arm64.zip"
 shasum -a 256 "$out/RoundEyesCompanion-macos-arm64.zip" > "$out/SHA256SUMS"

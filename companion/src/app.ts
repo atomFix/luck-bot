@@ -84,7 +84,7 @@ export class Companion {
   if(name==='text'){
    if(this.busy)throw new Error('busy');if(input.source!==undefined&&!['voice','agent'].includes(input.source))throw new Error('scope');
    const c=this.needDevice(input.device_id);if(c.info.mode!=='companion')throw new Error('mode');if(typeof input.text!=='string'||!input.text.trim()||input.text.length>4000)throw new Error('text_size');
-   const agent=input.source==='agent';if(agent&&this.agentBusy())throw new Error('busy');if(!agent)await this.cancelWork(true);const epoch=this.epoch;this.activeVoice++;
+   const agent=input.source==='agent';if(agent&&this.agentBusy())throw new Error('busy');if(!agent)await this.cancelWork(true);else if(input.speak===true)await this.speaker?.pause();const epoch=this.epoch;this.activeVoice++;
    try{const run=async()=>{const p=await this.makePipeline();if(epoch!==this.epoch)throw new Error('cancelled');const text=await p.text(input.text,{turn:c.currentTurn+1,speak:input.speak===true,source:input.source??'voice'});return {reply:text};};return this.journal?(await this.journal.run({mode:'text',device_id:c.info.device_id,boot_id:c.info.boot_id,session_id:(c.info as any).session_id,user_text:input.text},run)).value:await run();}finally{this.activeVoice--;this.resumeBackground(); }
   }
   if(name==='react'){

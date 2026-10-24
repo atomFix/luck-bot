@@ -49,12 +49,20 @@ export class VoicePipeline {
   }
   async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>, local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}) {
     const turn = await this.begin(id);
+    // begin() may cancel the previous turn, clearing its temporary eye layer.
+    await this.options.device.react({emotion:"thinking",hold_ms:3000},turn,"voice");
+    this.check(turn);
+    let thinkingActive=true;
+    const thinkingTimer=setInterval(()=>{if(thinkingActive&&!turn.signal.aborted)void this.options.device.react({emotion:"thinking",hold_ms:3000},turn,"voice").catch(()=>{});},1500);
+    thinkingTimer.unref();
+    const stopThinking=()=>{thinkingActive=false;clearInterval(thinkingTimer);};
+    try {
     const t = performance.now();
     const text = local?.text!==undefined ? local.text : await this.options.asr.transcribe(wav16k(pcm), turn.signal);
     this.check(turn);
     if(local?.text!==undefined){const meta={event:"asr.local.done",turn:turn.id,duration_ms:local.asr_ms??Math.round(performance.now()-t),model:local.model};if(this.options.diagnose)this.options.diagnose(meta);else currentJournal()?.event(meta);}else this.event("asr.done", turn, t);
     currentJournal()?.patch({ user_text: text || null, device_turn: turn.id });
-    if (!text.trim()) return;
+    if (!text.trim()) {stopThinking();await this.options.device.react({emotion:"neutral",hold_ms:300},turn,"voice");return;}
     let history = this.speakerHistory.get(speaker);
     if (!history) {
       if (this.speakerHistory.size >= 10)
@@ -69,6 +77,7 @@ export class VoicePipeline {
       history.snapshot(),
       turn.signal,
     );
+    stopThinking();
     const reaction={...predicted,hold_ms:Math.max(2500,predicted.hold_ms)};
     this.check(turn);
     this.event(quick?"reaction.local":"reaction.ready", turn, start);
@@ -90,6 +99,7 @@ export class VoicePipeline {
     });
     history.add(text, "表情：" + reaction.emotion);
     return reaction;
+    } finally {stopThinking();}
   }
 
   private async begin(id?: number) {

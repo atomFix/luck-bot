@@ -47,6 +47,7 @@ export class DeviceConnection extends EventEmitter implements DeviceClient {
   });
  }
  async listen(enabled:boolean,purpose:'ambient'|'enroll'='ambient'){return this.command('listen',{enabled,purpose},this.turn);}
+ async processingPose(active:boolean){return this.command('reaction',{emotion:active?'thinking':'neutral',hold_ms:active?3000:300,source:'voice'},this.turn);}
  async listenPose(listening:boolean){return this.command('listen_pose',{listening},this.turn);}
  async status(signal:AbortSignal):Promise<DeviceStatus>{return this.command('status',{},this.turn,signal);}
  async react(value:Reaction,turn:Turn,source:'voice'|'manual'|'agent'):Promise<Applied>{return this.command('reaction',{...parseReaction(value),source},turn.id,turn.signal);}

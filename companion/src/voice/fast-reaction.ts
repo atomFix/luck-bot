@@ -33,6 +33,23 @@ export function requestedDirection(input:string):{look_x:number;look_y:number}|n
  const d=m[1]!;
  return {look_x:d.includes('左')?-1:d.includes('右')?1:0,look_y:/上|抬头/.test(d)?-1:/下|低头/.test(d)?1:0};
 }
+const gestureNames={点头:'agree',点点头:'agree',点一下头:'agree',点个头:'agree',点头认可:'agree',点头表示认可:'agree',表示认可:'agree',表示认同:'agree',表示赞同:'agree',上下摆动:'agree',摇头:'disagree',摇摇头:'disagree',摇一下头:'disagree',摇个头:'disagree',摇头不认可:'disagree',摇头表示不认可:'disagree',表示不认可:'disagree',表示不认同:'disagree',表示反对:'disagree',左右摆动:'disagree'} as const;
+const gestureRequest=new RegExp('^'+prefix+'(?:(?:表演|做|来)(?:一下|一个|个)?)?('+Object.keys(gestureNames).sort((a,b)=>b.length-a.length).join('|')+')(?:一下)?'+suffix+'$');
+export function requestedGesture(input:string):'agree'|'disagree'|null {
+ const text=commandText(input);if(!text)return null;
+ const match=gestureRequest.exec(text);
+ return match?gestureNames[match[1] as keyof typeof gestureNames]:null;
+}
+const bareOpinion=/^(?:那|那么|所以)?(?:你觉得|你认为)?(?:这|这个|这样|我说的)?(?:是)?(?:对不对|对吗|对么|正确吗|正确么|同不同意|赞不赞同|认不认可)(?:呢)?$/;
+export function missingOpinionReferent(input:string,history:Message[]):boolean {
+ const text=commandText(input);if(!text||!bareOpinion.test(text))return false;
+ return !history.some(m=>{
+  if(m.role!=='user')return false;
+  const previous=commandText(m.content);
+  const substantive=previous===null||(previous.length>0&&!bareOpinion.test(previous)&&!/^(?:嗯+|呃+|啊+|哦+|好|好的|谢谢|知道了|这样啊|再换一个|换个表情)$/.test(previous));
+  return /[\p{L}\p{N}]/u.test(m.content)&&substantive&&!requestedGesture(m.content)&&!requestedExpression(m.content)&&!requestedDirection(m.content);
+ });
+}
 // Whole-phrase social responses from the robot's perspective. Uncertain semantics defer.
 export function localReaction(input:string,history:Message[]=[]):Reaction|null {
  const requested=requestedExpression(input,history);if(requested)return requested;

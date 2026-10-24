@@ -1,5 +1,6 @@
 import {z} from 'zod';
-import {requestedExpression,requestedDirection} from './fast-reaction.js';
+import {requestedExpression,requestedDirection,requestedGesture,missingOpinionReferent} from './fast-reaction.js';
+import {OPINION_GESTURES,opinionGesture} from './opinion-gestures.mjs';
 import type {Message} from '../contracts.js';
 import {EMOTIONS,type Emotion,type Reaction} from '../contracts.js';
 const StepSchema=z.object({emotion:z.enum(EMOTIONS),duration_ms:z.number().int().min(200).max(5000),look_x:z.number().min(-1).max(1).default(0),look_y:z.number().min(-1).max(1).default(0),scale:z.number().min(.65).max(1.2).default(1),shake:z.number().min(0).max(1).default(0),blink:z.number().min(0).max(3).default(1),blink_once:z.boolean().default(false),transition_ms:z.number().int().min(120).max(1500).default(300)}).strict();
@@ -8,6 +9,7 @@ export type AnimationPlan=z.infer<typeof AnimationSchema>;
 export type AnimationStep=AnimationPlan['steps'][number];
 const step=(emotion:Emotion,duration_ms:number,motion:Partial<AnimationStep>={})=>StepSchema.parse({emotion,duration_ms,transition_ms:750,...motion});
 export const SCENES={
+ ...OPINION_GESTURES,
  horror:{label:'恐怖与警惕',steps:[step('confused',2400,{look_x:-.45}),step('shocked',2600,{scale:1.15,blink:0,transition_ms:650}),step('shocked',4000,{scale:.72,shake:.65,blink:1.3,transition_ms:1000}),step('thinking',3500,{scale:.95,look_x:.3,transition_ms:1100})]},
  relief:{label:'虚惊一场',steps:[step('confused',2200,{look_x:.35}),step('relaxed',4000,{scale:.95,transition_ms:1100}),step('neutral',2600,{transition_ms:1200})]},
  celebration:{label:'庆祝好消息',steps:[step('happy',3600,{scale:1.15,look_y:-.3}),step('laughing',3200,{scale:1.16,shake:.1,blink:.5}),step('relaxed',3400,{transition_ms:1000}),step('neutral',2600,{transition_ms:1200})]},
@@ -27,6 +29,8 @@ export function parseAnimationChoice(value:unknown):AnimationPlan{
 export function reactionAnimation(reaction:Reaction):AnimationPlan{return AnimationSchema.parse({scene:'requested',steps:[step(reaction.emotion,reaction.hold_ms)]});}
 // Explicit eye commands bypass free-form persona interpretation, even with fast reactions disabled.
 export function requestedAnimation(text:string,history:Message[]=[],lastEmotion:Emotion='neutral'):AnimationPlan|null {
+ const gesture=requestedGesture(text);
+ if(gesture)return parseAnimationChoice({preset:gesture});
  const reaction=requestedExpression(text,history);
  if(reaction)return reactionAnimation(reaction);
  const direction=requestedDirection(text);
@@ -45,6 +49,8 @@ export function socialAnimation(reaction:Reaction,text:string):AnimationPlan{
 
 // Keep a readable hold after easing. Fit the existing 30s wire limit without dropping steps.
 export function paceAnimation(plan:AnimationPlan):AnimationPlan {
+ // Rhythmic agreement is one attitude, not six rapidly changing emotions.
+ if(opinionGesture(plan))return AnimationSchema.parse(plan);
  const steps=plan.steps.map(s=>{
   const transition_ms=Math.max(600,Math.min(1200,s.transition_ms));
   const minimum=Math.max(s.emotion==='neutral'?1800:2200,transition_ms+1000);
@@ -63,7 +69,8 @@ export function animationReplacementDelay(plan:AnimationPlan,elapsed:number):num
  return 0;
 }
 // Whole-phrase repair/acknowledgement; stories and mixed meanings still go to the model.
-export function conversationalAnimation(text:string,current?:string,lastEmotion?:string):AnimationPlan|null {
+export function conversationalAnimation(text:string,current?:string,lastEmotion?:string,history:Message[]=[]):AnimationPlan|null {
+ if(missingOpinionReferent(text,history))return AnimationSchema.parse({scene:'opinion_uncertain',steps:[step('thinking',3600,{look_x:.3,look_y:-.2,blink:.6,transition_ms:800})]});
  const t=text.replace(/[\s，,。.!！?？、]/gu,'').replace(/^(?:嗯|呃|啊)+/u,'');
  if((!t&&/[\p{L}\p{N}]/u.test(text))||/^(?:哦+|好|好的|好吧|这样啊|知道了)$/.test(t)){
   const emotion=EMOTIONS.find(e=>e===current)??'neutral';

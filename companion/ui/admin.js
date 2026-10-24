@@ -112,7 +112,9 @@
   }
   function directionLabel(x,y){return (x<0?'左':x>0?'右':'')+(y<0?'上':y>0?'下':'');}
   function turnExpression(t){
-    const host=node('div',null,'turn-expression');host.append(window.RoundEyesEmotionUI.badge(t.emotion));
+    const host=node('div',null,'turn-expression');
+    if(t.gesture)host.append(node('span',t.gesture.label,'gesture-label'));
+    host.append(window.RoundEyesEmotionUI.badge(t.emotion));
     const directions=(t.motion_directions??[]).map(d=>directionLabel(d.x,d.y)).filter(Boolean);
     if(directions.length)host.append(node('small','朝向：'+directions.join(' → '),'muted'));
     return host;
@@ -290,6 +292,7 @@
     }
     if(d.turn.error)host.append(node("h3",d.turn.status==="ignored"?"忽略原因":"异常原因"),node("p",`${reasonText(d.turn.error)}（${d.turn.error}）`,"turn-detail-reason"));
     const reaction=node("div",null,"emotion-result");reaction.append(window.RoundEyesEmotionUI.badge(d.turn.emotion),node("span",`${d.turn.hold_ms?" · "+d.turn.hold_ms+"ms":""}${d.turn.error?" · "+d.turn.error:""}`));
+    if(d.turn.gesture)reaction.prepend(node('strong',d.turn.gesture.label+' · ','gesture-label'));
     host.append(node("h3","表情与结果"),reaction,node("h3", "阶段时间线"));
     const spans = node("div", null, "table-wrap");
     table(

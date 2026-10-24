@@ -1,5 +1,6 @@
 import {deepseekPrices} from './deepseek-pricing.mjs';
 import {capturePayload} from './payloads.mjs';
+import {OPINION_GESTURES,opinionGesture} from '../voice/opinion-gestures.mjs';
 import { parentPort, workerData } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
 import { chmodSync, existsSync, copyFileSync } from "node:fs";
@@ -143,6 +144,17 @@ function groupedCosts(costs) {
     amount: total(g.amounts),
   }));
 }
+function animationSummary(id){
+  const row=db.prepare('SELECT plan FROM turn_animations WHERE turn_id=?').get(id);
+  const plan=parse(row?.plan),key=opinionGesture(plan,false),steps=plan?.steps??[];
+  return {
+    gesture:key?{key,label:OPINION_GESTURES[key].label}:null,
+    motion_directions:[...new Map(steps.filter(s=>Math.abs(s.look_x)>.05||Math.abs(s.look_y)>.05).map(s=>{
+      const x=Math.abs(s.look_x)>.05?Math.sign(s.look_x):0,y=Math.abs(s.look_y)>.05?Math.sign(s.look_y):0;
+      return [x+','+y,{x,y}];
+    })).values()],
+  };
+}
 function enrichTurn(turn) {
   const attempts = db
     .prepare("SELECT * FROM provider_attempts WHERE turn_id=?")
@@ -163,14 +175,7 @@ function enrichTurn(turn) {
   }
   return {
     ...turn,
-    motion_directions: (()=>{
-      const row=db.prepare('SELECT plan FROM turn_animations WHERE turn_id=?').get(turn.id);
-      const steps=parse(row?.plan)?.steps??[];
-      return [...new Map(steps.filter(s=>Math.abs(s.look_x)>.05||Math.abs(s.look_y)>.05).map(s=>{
-        const x=Math.abs(s.look_x)>.05?Math.sign(s.look_x):0,y=Math.abs(s.look_y)>.05?Math.sign(s.look_y):0;
-        return [x+','+y,{x,y}];
-      })).values()];
-    })(),
+    ...animationSummary(turn.id),
     input_tokens: input,
     output_tokens: output,
     costs: groupedCosts(costs),
@@ -400,7 +405,7 @@ function execute(op, i) {
     const turn = db.prepare("SELECT * FROM turns WHERE id=?").get(i.id);
     if (!turn) throw new Error("turn_unknown");
     return {
-      turn,
+      turn:{...turn,...animationSummary(turn.id)},
       animation:(()=>{const a=db.prepare('SELECT plan,source FROM turn_animations WHERE turn_id=?').get(i.id);return a?{plan:parse(a.plan),source:a.source}:null;})(),
       audio:db.prepare("SELECT length(pcm) as bytes,sample_rate,duration_ms FROM turn_audio WHERE turn_id=?").get(i.id)??null,
       spans: db

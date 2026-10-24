@@ -11,6 +11,8 @@ Call `list_devices` to find authorized devices. Use the user's chosen device; if
 
 If you already know the desired expression, call `set_reaction` directly. Do not call `semantic_input` to reclassify your own expression. Use `semantic_input` when the user wants a supplied sentence understood; it can return reply text but does not grant microphone access or play audio.
 
+For an explicitly requested nod or head shake, use `semantic_input` with `点点头` or `摇摇头`. These are complete motion timelines, not `set_reaction` emotion keys. For a question asking whether a statement is correct, supply the complete statement and question so the companion can judge agreement; do not send a bare question with no referent or assume agreement yourself.
+
 `set_reaction` accepts only these emotion keys:
 `neutral happy laughing funny sad angry crying loving embarrassed surprised shocked thinking winking cool relaxed delicious kissy confident sleepy silly confused wide_eyes mega_eyes giant_left giant_right`.
 

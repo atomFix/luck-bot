@@ -36,7 +36,8 @@
     const face=document.createElementNS(ns,'circle');for(const [k,v]of Object.entries({cx:120,cy:120,r:119,fill:'#000'}))face.setAttribute(k,v);svg.append(face);
     const paths=[0,1].map(()=>{const p=document.createElementNS(ns,'path');p.setAttribute('fill','#fff');svg.append(p);return p;});
     const readout=document.createElement('p'),button=document.createElement('button'),hint=document.createElement('small');button.textContent='预览动画';hint.textContent='编排示意 · 真实过渡与帧率以圆屏为准';host.append(svg,readout,button,hint);
-    let running=false,start=0,points;
+    let running=false,start=0,points,velocities;
+    const opinion=plan.scene==='agree'||plan.scene==='disagree';
     const total=plan.steps.reduce((n,s)=>n+s.duration_ms,0);
     const draw=(elapsed,dt)=>{
       let age=elapsed,index=0;while(index+1<plan.steps.length&&age>=plan.steps[index].duration_ms){age-=plan.steps[index].duration_ms;index++;}
@@ -45,12 +46,19 @@
       const shape=window.RoundEyesGeometry.project(pose,step,age,running);
       const amount=1-Math.exp(-dt/Math.max(40,(step.transition_ms||750)/4));if(!points)points=shape.map(p=>p.slice());
       paths.forEach((path,e)=>{
-        points[e]=points[e].map((v,j)=>v+(shape[e][j]-v)*amount);
+        if(opinion){
+          if(!velocities)velocities=points.map(p=>p.map(()=>0));
+          let remaining=Math.min(100,dt)/1000;
+          const omega=Math.min(30,Math.max(5,4000/(step.transition_ms||420)));
+          while(remaining>0){const h=Math.min(.016,remaining);remaining-=h;
+            points[e]=points[e].map((v,j)=>{const a=omega*omega*(shape[e][j]-v)-2*omega*velocities[e][j];velocities[e][j]+=a*h;return v+velocities[e][j]*h;});
+          }
+        }else points[e]=points[e].map((v,j)=>v+(shape[e][j]-v)*amount);
         path.setAttribute('d',points[e].map((v,j)=>(j%2?' ':j?'L':'M')+v.toFixed(2)).join('')+'Z');
       });
       readout.textContent=`第 ${index+1} / ${plan.steps.length} 步 · ${format(step.emotion)} · ${(elapsed/1000).toFixed(1)} / ${(total/1000).toFixed(1)} 秒`;
     };
-    draw(0,1000);button.onclick=()=>{if(running){running=false;button.textContent='重新预览';return;}running=true;start=performance.now();points=undefined;let previous=start;button.textContent='停止预览';
+    draw(0,1000);button.onclick=()=>{if(running){running=false;button.textContent='重新预览';return;}running=true;start=performance.now();points=undefined;velocities=undefined;let previous=start;button.textContent='停止预览';
       const tick=now=>{if(!running||!host.isConnected||!host.getClientRects().length||document.hidden){running=false;button.textContent='重新预览';return;}const elapsed=Math.min(total-1,now-start);draw(elapsed,Math.min(100,now-previous));previous=now;if(now-start>=total){running=false;button.textContent='重新预览';return;}requestAnimationFrame(tick);};requestAnimationFrame(tick);
     };return host;
   }

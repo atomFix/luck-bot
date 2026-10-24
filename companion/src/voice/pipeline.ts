@@ -1,7 +1,9 @@
 import {setTimeout as animationDelay} from 'node:timers/promises';
 import {requestedAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,paceAnimation,animationReplacementDelay,conversationalAnimation,type AnimationPlan} from './animation.js';
 import {performReaction} from './reaction-performance.js';
-import {localReaction} from './fast-reaction.js';
+import {localReaction,requestedGesture,missingOpinionReferent} from './fast-reaction.js';
+import {asksForOpinion} from './opinion-gestures.mjs';
+import {parseAnimationChoice} from './animation.js';
 import { currentJournal } from "../ledger/journal.js";
 import { performance } from "node:perf_hooks";
 import type {
@@ -123,7 +125,7 @@ export class VoicePipeline {
     if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(12,6000);this.speakerHistory.set(speaker,history);}
     const position=previous?animationPosition(previous.plan,Math.round(performance.now()-previous.at)):undefined;
     const requested=requestedAnimation(text,history.snapshot(),previous?primaryEmotion(previous.plan):undefined);
-    const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral',previous?primaryEmotion(previous.plan):undefined);
+    const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral',previous?primaryEmotion(previous.plan):undefined,history.snapshot());
     const quick=!requested&&local?.fast?localReaction(text,history.snapshot()):null;
     const context=history.snapshot();
     if(position)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(position)});
@@ -217,6 +219,16 @@ export class VoicePipeline {
     currentJournal()?.patch({ device_turn: turn.id });
     const history = this.history.snapshot();
     let began = performance.now();
+    const gesture=requestedGesture(text);
+    if(this.options.animations&&this.options.device.animate&&this.options.brain.animation&&(gesture||asksForOpinion(text))){
+      const localPlan=gesture?parseAnimationChoice({preset:gesture}):missingOpinionReferent(text,history)?conversationalAnimation(text,undefined,undefined,history):null;
+      if(!localPlan){await this.options.thinking?.();this.check(turn);}
+      const plan=paceAnimation(localPlan??await this.options.brain.animation(text,history,turn.signal));
+      this.check(turn);this.event('reaction.ready',turn,began);
+      await currentJournal()?.saveAnimation(plan,localPlan?'local':animationSource(plan));
+      currentJournal()?.patch({emotion:primaryEmotion(plan),hold_ms:plan.steps.reduce((n,s)=>n+s.duration_ms,0)});
+      began=performance.now();await this.options.device.animate(plan,turn);this.check(turn);this.event('animation.applied',turn,began);
+    }else{
     const reaction = await this.options.brain.reaction(
       text,
       history,
@@ -232,6 +244,7 @@ export class VoicePipeline {
     await this.options.device.react(reaction, turn, source);
     this.check(turn);
     this.event("reaction.applied", turn, began);
+    }
     let reply = "",
       sentence = "",
       first = true;

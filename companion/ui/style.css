@@ -117,3 +117,4 @@ section>label+label,.providers{margin-top:18px}
 
 .expression-direction{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:22px 0 14px}.expression-direction label{min-width:160px}.expression-direction p{font-size:12px;flex:1;min-width:200px;margin:0;line-height:1.8}.expression-facing-label{font-size:11px;text-align:center;color:var(--accent);margin:0 0 14px;min-height:18px}
 .turn-expression{display:flex;flex-direction:column;align-items:flex-start;gap:6px}.turn-expression small{font-size:11px;white-space:normal;line-height:1.4}
+.gesture-label{color:var(--accent,#a6e8d8);font-size:12px;font-weight:600}

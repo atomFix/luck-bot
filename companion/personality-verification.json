@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-24",
+  "scope": "Approved bounded change to existing desktop-robot reactions; no firmware or device protocol changes",
+  "persona": "Warm, curious, clever and slightly playful; robot responds from its own perspective",
+  "behavior": {
+    "local_whole_phrase_social_exchanges": true,
+    "per_speaker_recent_response_variation": 2,
+    "ambient_max_phases": 2,
+    "phase_delay_ms": 350,
+    "lead_hold_ms": 500,
+    "main_ambient_hold_ms_min": 2500,
+    "voice_chat": "Shared persona; immediate main reaction without choreography delay",
+    "ordinary_ambient": "Eyes only, no reply or TTS",
+    "privacy": "Existing speaker gate and device authentication retained; uncertain semantics defer rather than broad keyword matching"
+  },
+  "checks": {
+    "tests": {
+      "pass": 112,
+      "fail": 0
+    },
+    "typescript": "pass",
+    "bundle_manifest": "pass",
+    "codesign_deep_strict": "pass",
+    "bundled_sqlite": "pass",
+    "bundled_speaker_probe": "pass",
+    "bundled_chinese_asr_probe": {
+      "audio_ms": 5612.5625,
+      "wall_ms": 84,
+      "cpu_ms": 73,
+      "finalize_ms": 8
+    },
+    "installed_source_build_hash_comparison": "All four changed runtime files identical",
+    "settings_and_encrypted_vault": "Exact hashes unchanged after installation",
+    "review": "Author review of lifecycle, listening gates, unchanged wire schema, ledger spans and local/cloud persona consistency; not independent review"
+  },
+  "live_model_semantics": {
+    "cases": [
+      {
+        "case": "success",
+        "emotion": "happy",
+        "hold_ms": 2500,
+        "ms": 767,
+        "pass": true
+      },
+      {
+        "case": "tired",
+        "emotion": "loving",
+        "hold_ms": 2500,
+        "ms": 624,
+        "pass": true
+      },
+      {
+        "case": "compliment",
+        "emotion": "embarrassed",
+        "hold_ms": 2000,
+        "ms": 653,
+        "pass": true
+      },
+      {
+        "case": "teasing",
+        "emotion": "embarrassed",
+        "hold_ms": 2200,
+        "ms": 579,
+        "pass": true
+      },
+      {
+        "case": "code",
+        "emotion": "thinking",
+        "hold_ms": 2500,
+        "ms": 395,
+        "pass": true
+      },
+      {
+        "case": "focus",
+        "emotion": "confident",
+        "hold_ms": 2500,
+        "ms": 718,
+        "pass": true
+      },
+      {
+        "case": "negation",
+        "emotion": "loving",
+        "hold_ms": 2500,
+        "ms": 558,
+        "pass": true
+      },
+      {
+        "case": "criticism",
+        "emotion": "embarrassed",
+        "hold_ms": 2200,
+        "ms": 894,
+        "pass": true
+      }
+    ],
+    "provider_attempts": 8,
+    "input_tokens": 3626,
+    "output_tokens": 105,
+    "ledger_mode": "diagnostic",
+    "ledger_prefix": "[人格验证样例]",
+    "cost": "Recorded in existing provider ledger; no invented monetary estimate"
+  },
+  "physical_acceptance": {
+    "user_feedback": "Different reactions visible; feels like a little robot",
+    "compliment": {
+      "final_emotion": "embarrassed",
+      "provider_attempts": 0,
+      "endpoint_at_ms": 1281,
+      "first_cue": "surprised",
+      "first_ack_at_ms": 1360,
+      "main_ack_at_ms": 1801,
+      "endpoint_to_first_ack_ms": 79,
+      "endpoint_to_main_ack_ms": 520
+    },
+    "next_utterance": {
+      "final_emotion": "confused",
+      "route": "Local ASR then semantic model",
+      "provider_attempts": 1,
+      "model_ms": 533,
+      "device_ack_ms": 23
+    },
+    "notes": "Second phrase took semantic fallback; do not claim both physical samples used local rules or that a particular teasing eye was observed"
+  },
+  "limitations": [
+    "Persona is expressed behavior, not persistent independent cognition",
+    "History remains bounded in-process; no new long-term memory system",
+    "Local Chinese ASR can misrecognize short phrases; conservative fallback remains enabled",
+    "No new long-session, mixed-speaker or echo acceptance claims",
+    "Choreography is applied to ambient eyes; voice chat shares persona but uses one main reaction"
+  ]
+}

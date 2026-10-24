@@ -1,3 +1,4 @@
+import {performReaction} from './reaction-performance.js';
 import {localReaction} from './fast-reaction.js';
 import { currentJournal } from "../ledger/journal.js";
 import { performance } from "node:perf_hooks";
@@ -61,7 +62,7 @@ export class VoicePipeline {
       this.speakerHistory.set(speaker, history);
     }
     const start = performance.now();
-    const quick=local?.fast?localReaction(text):null;
+    const quick=local?.fast?localReaction(text,history.snapshot()):null;
     const predicted = quick ?? await this.options.brain.reaction(
       text,
       history.snapshot(),
@@ -78,10 +79,14 @@ export class VoicePipeline {
     await beforeApply?.(turn.signal);
     this.check(turn);
     if(performance.now()-waiting>=1)this.event("reaction.display_wait",turn,waiting);
-    const applied = performance.now();
-    await this.options.device.react(reaction, turn, "voice");
-    this.check(turn);
-    this.event("reaction.applied", turn, applied);
+    await performReaction(reaction,turn.signal,async value=>{
+      this.check(turn);
+      await this.options.device.react(value,turn,"voice");
+      this.check(turn);
+    },beforeApply,(name,start,value)=>{
+      const meta={event:name,turn:turn.id,duration_ms:Math.round(performance.now()-start),code:value.emotion};
+      if(this.options.diagnose)this.options.diagnose(meta);else currentJournal()?.event(meta);
+    });
     history.add(text, "表情：" + reaction.emotion);
     return reaction;
   }

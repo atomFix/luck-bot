@@ -4,7 +4,7 @@
   "checks": {
     "host_tests": {
       "status": "passed",
-      "count": 51,
+      "count": 63,
       "note": "Full suite after final PCM fix; tsc/package build passed, includes actual local Silero silence inference, capture cancellation, native PCM drain and temp install/upgrade checks."
     },
     "native_keychain": {
@@ -40,7 +40,7 @@
     "render_smoke": {
       "status": "passed",
       "fps": 24.7,
-      "note": "Bounded AFE-listening passive capture 24.7\u201324.9 FPS. No claim of long soak or optical panel measurement."
+      "note": "Bounded AFE-listening passive capture 24.7–24.9 FPS. No claim of long soak or optical panel measurement."
     },
     "physical_pairing": {
       "status": "passed",
@@ -136,6 +136,11 @@
       "status": "failed",
       "artifact": "acoustic-verification.json",
       "note": "Automated Mac speaker -> real board mic: 2 full turns passed; turn 3 woke but local VAD reported no_speech. Stopped without further cloud calls. Isolated same-sentence local VAD diagnostic passed; intermittent cause unresolved. 10 rounds/10 minutes not accepted."
+    },
+    "admin_console": {
+      "status": "passed",
+      "artifact": "admin-verification.json",
+      "note": "SQLite persistence, accounting/stream/degraded-boot regressions, UI fixture and installed real text turn passed. No real rates configured; costs unknown. Speaker recognition and long physical voice acceptance remain separate."
     }
   }
 }

@@ -1,0 +1,87 @@
+{
+  "turns": [
+    {
+      "id": "72485a30-2a63-4fd7-a8f5-7884cfcf2f9d",
+      "mode": "text",
+      "status": "completed",
+      "duration_ms": 1598,
+      "input_chars": 22,
+      "reply_chars": 4,
+      "emotion": "neutral"
+    }
+  ],
+  "attempts": [
+    {
+      "kind": "reaction",
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "status": "completed",
+      "duration_ms": 628,
+      "usage": {
+        "input_tokens": 188,
+        "output_tokens": 12,
+        "total_tokens": 200,
+        "cache_hit_tokens": 0,
+        "cache_miss_tokens": 188
+      }
+    },
+    {
+      "kind": "reply",
+      "provider": "deepseek",
+      "model": "deepseek-flash",
+      "status": "completed",
+      "duration_ms": 868,
+      "usage": {
+        "input_tokens": 55,
+        "output_tokens": 2,
+        "total_tokens": 57,
+        "cache_hit_tokens": 0,
+        "cache_miss_tokens": 55
+      }
+    }
+  ],
+  "spans": [
+    {
+      "event": "brain.reaction",
+      "duration_ms": null
+    },
+    {
+      "event": "reaction.ready",
+      "duration_ms": 631
+    },
+    {
+      "event": "reaction.applied",
+      "duration_ms": 71
+    },
+    {
+      "event": "reply.first_token",
+      "duration_ms": 769
+    },
+    {
+      "event": "reply.completed",
+      "duration_ms": 1572
+    }
+  ],
+  "date": "2026-10-24",
+  "host_tests": 63,
+  "typecheck": "passed",
+  "independent_review": {
+    "status": "passed-after-one-fix-pass",
+    "important_findings": 3,
+    "reproduced_and_fixed": 3
+  },
+  "sqlite_runtime": "bundled create/reopen/interrupted recovery passed",
+  "browser_fixture": "pagination 32 rows/search/literal HTML/details/prices/sentinel reveal and page-switch hide passed",
+  "installed_browser": "real record/token counts visible; real keys not revealed",
+  "live_call_budget": {
+    "turns": 1,
+    "logical_deepseek_calls": 2,
+    "asr_calls": 0,
+    "tts_calls": 0
+  },
+  "pricing": "not configured; costs unknown, no invented amount",
+  "speaker_identification": "not implemented in admin project",
+  "physical_voice_soak": "previous no_speech failure remains unresolved",
+  "credential_helper": "byte-identical; Keychain preserved",
+  "firmware": "not changed"
+}

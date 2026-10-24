@@ -56,7 +56,7 @@
       ? costs
           .map((c) => `${c.currency} ${c.amount} · ${label(c.kind)}`)
           .join(" / ")
-      : "未知 / 未计费";
+      : "费用未知";
   function table(target, columns, rows) {
     const host = typeof target === "string" ? $(target) : target;
     host.replaceChildren();

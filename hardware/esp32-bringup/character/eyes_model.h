@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include "timeline.h"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -27,8 +28,11 @@ public:
     void SetBehavior(Behavior value, uint64_t now_ms);
     void ForcePose(std::optional<uint8_t> pose, uint64_t now_ms);
     void ObserveAudio(float energy, uint64_t now_ms);
+    void SetMotion(const MotionCue& cue){motion_=cue;}
     Frame Tick(uint64_t now_ms);
 private:
+    MotionCue motion_{};
+    float motion_shake_=0;uint32_t motion_key_=0;
     uint32_t random_;
     uint32_t NextRandom();
     uint8_t emotion_ = 0, pose_ = 0;

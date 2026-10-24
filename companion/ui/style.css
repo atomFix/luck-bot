@@ -7,3 +7,4 @@ button.emotion-label{display:inline-flex;align-items:center;padding:5px 8px;back
 .turn-reason{display:inline-block;min-width:100px;max-width:220px;white-space:normal;line-height:1.5;color:var(--muted)}.turn-detail-reason{padding:12px 16px;background:#302924;border:1px solid #65513d;border-radius:8px}
 
 #turn-detail audio{display:block;width:min(100%,560px);margin:14px 0}#turn-detail a.text-link{display:inline-block;margin-bottom:8px}
+.animation-preview{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:18px;margin:16px 0;background:#0e1419;border:1px solid #26343c;border-radius:14px}.animation-preview p{min-width:210px}.animation-preview small{color:#9babb3}

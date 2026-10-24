@@ -8,6 +8,7 @@ struct SignalSnapshot {Behavior behavior;float energy;uint64_t audio_at_ms;bool 
 class AnimationSignals {
 public:
  static AnimationSignals& Instance();
+ AnimationTrack timeline;
  void PublishDeviceState(InputState state,uint64_t now_ms);
  void NotifyRecognizedText(bool nonempty,uint64_t now_ms);
  void PublishPlayback(const int16_t* pcm,size_t count,uint64_t now_ms);

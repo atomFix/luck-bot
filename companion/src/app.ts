@@ -1,3 +1,4 @@
+import {SCENES,AnimationSchema,primaryEmotion} from './voice/animation.js';
 import type {LocalAsr} from './voice/local-asr.js';
 import {SpeakerController} from './speaker/controller.js';
 import type {SpeakerProfiles} from './speaker/profiles.js';
@@ -21,7 +22,7 @@ export class Companion {
  private needDevice(id?:string){if(!this.connection||(id&&id!==this.connection.info.device_id))throw new Error('device_offline');return this.connection;}
  private async buildPipeline(){const epoch=this.epoch;const connection=this.needDevice();const key=await this.secrets.get('provider/deepseek');if(!key)throw new Error('credential_missing');if(epoch!==this.epoch||connection!==this.connection)throw new Error('stale');const speech=this.registry.resolve(this.config.speech,this.secrets);
   if(this.config.performance.local_asr){if(!this.speakerServices?.asr)throw new Error('local_asr_unavailable');await this.speakerServices.asr.ready();speech.asr=this.speakerServices.asr;}
-  this.pipeline=new VoicePipeline({asrModel:this.config.performance.local_asr?this.speakerServices?.asr?.status.model:this.config.speech.asr.model,brain:new DeepSeekBrain({key,model:this.config.deepseek_model,diagnose:this.diagnose}),device:connection,...speech,output:this.config.output==='mac'?new MacOutput(undefined,this.diagnose):new DeviceOutput(connection),diagnose:this.diagnose,onReply:text=>this.lastReply=text});return this.pipeline;
+  this.pipeline=new VoicePipeline({animations:connection.info.capabilities?.includes('animation_v1'),thinking:()=>connection.processingPose(true),asrModel:this.config.performance.local_asr?this.speakerServices?.asr?.status.model:this.config.speech.asr.model,brain:new DeepSeekBrain({key,model:this.config.deepseek_model,diagnose:this.diagnose}),device:connection,...speech,output:this.config.output==='mac'?new MacOutput(undefined,this.diagnose):new DeviceOutput(connection),diagnose:this.diagnose,onReply:text=>this.lastReply=text});return this.pipeline;
  }
  private async makePipeline(){if(this.pipeline)return this.pipeline;if(this.pipelinePromise)return this.pipelinePromise;const promise=this.buildPipeline();this.pipelinePromise=promise;try{return await promise;}finally{if(this.pipelinePromise===promise)this.pipelinePromise=undefined;}}
  private async cancelWork(cancelCapture:boolean){
@@ -88,6 +89,19 @@ export class Companion {
    const c=this.needDevice(input.device_id);if(c.info.mode!=='companion')throw new Error('mode');if(typeof input.text!=='string'||!input.text.trim()||input.text.length>4000)throw new Error('text_size');
    const agent=input.source==='agent';if(agent&&this.agentBusy())throw new Error('busy');if(!agent)await this.cancelWork(true);else if(input.speak===true)await this.speaker?.pause();const epoch=this.epoch;this.activeVoice++;
    try{const run=async()=>{const p=await this.makePipeline();if(epoch!==this.epoch)throw new Error('cancelled');const text=await p.text(input.text,{turn:c.currentTurn+1,speak:input.speak===true,source:input.source??'voice'});return {reply:text};};return this.journal?(await this.journal.run({mode:'text',device_id:c.info.device_id,boot_id:c.info.boot_id,session_id:(c.info as any).session_id,user_text:input.text},run)).value:await run();}finally{this.activeVoice--;this.resumeBackground(); }
+  }
+  if(name==='story-text'){
+   if(this.busy||this.activeVoice)throw new Error('busy');if(input.source==='agent'&&this.agentBusy())throw new Error('busy');
+   const c=this.needDevice(input.device_id);if(!c.info.capabilities?.includes('animation_v1'))throw new Error('firmware_update_required');if(typeof input.text!=='string'||!input.text.trim()||input.text.length>4000)throw new Error('text_size');
+   await this.speaker?.pause();this.activeVoice++;
+   try{const run=async()=>{const p=await this.makePipeline();return await p.expression(new Uint8Array(),c.currentTurn+1,'story-text',undefined,{text:input.text.trim(),fast:this.config.performance.fast_reactions});};return this.journal?(await this.journal.run({mode:'text',device_id:c.info.device_id,user_text:input.text.trim()},run)).value:await run();}finally{this.activeVoice--;this.resumeBackground();}
+  }
+  if(name==='animation-presets')return Object.entries(SCENES).map(([id,v])=>({id,label:v.label,plan:{scene:id,steps:v.steps}}));
+  if(name==='animation'){
+   if(this.busy||this.activeVoice)throw new Error('busy');const c=this.needDevice(input.device_id);if(!c.info.capabilities?.includes('animation_v1'))throw new Error('firmware_update_required');
+   const plan=AnimationSchema.parse(input.plan??{scene:input.preset,steps:SCENES[input.preset as keyof typeof SCENES]?.steps});
+   await this.cancelWork(true);this.activeVoice++;
+   try{const run=async()=>{await this.journal?.saveAnimation(plan,'replay');await c.animate(plan,{id:c.currentTurn+1,signal:AbortSignal.timeout(4000)});this.journal?.patch({emotion:primaryEmotion(plan),hold_ms:plan.steps.reduce((n,s)=>n+s.duration_ms,0)});return {scene:plan.scene,steps:plan.steps.length};};return this.journal?(await this.journal.run({mode:'text',device_id:c.info.device_id,user_text:'动画演示：'+plan.scene},run)).value:await run();}finally{this.activeVoice--;this.resumeBackground();}
   }
   if(name==='react'){
    const c=this.needDevice(input.device_id);const reaction=parseReaction({emotion:input.emotion,hold_ms:input.hold_ms});if(!['agent','manual'].includes(input.source??'manual'))throw new Error('scope');

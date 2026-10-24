@@ -18,6 +18,7 @@
     cache_hit_tokens: "缓存命中",
     cache_miss_tokens: "缓存未命中",
     total_tokens: "总 token",
+    story_window:"连续讲述窗口（约4秒）",utterance_end:"自然停顿句尾",
     measured_audio_ms: "音频毫秒（测量）",
     measured_input_characters: "输入字符（测量）",
     measured_output_pcm_bytes: "PCM 字节（测量）",
@@ -290,7 +291,7 @@
         s.event,
         ms(s.at_ms),
         ms(s.duration_ms),
-        window.RoundEyesEmotionUI.has(s.meta?.code)?window.RoundEyesEmotionUI.badge(s.meta.code):s.meta?.code ??
+        window.RoundEyesEmotionUI.has(s.meta?.code)?window.RoundEyesEmotionUI.badge(s.meta.code):(labels[s.meta?.code]??s.meta?.code) ??
           (s.meta?.voiced_ms!=null?`有效人声 ${s.meta.voiced_ms}ms / 最低 ${s.meta.required_voiced_ms}ms；采集 ${s.meta.pcm_ms}ms`:s.meta?.bytes != null ? s.meta.bytes + " PCM 字节" : "—"),
       ]),
     );
@@ -349,6 +350,12 @@
       call.append(node("summary",`${index+1}. ${a.kind==="reaction"?"表情判断":"对话回复"} · ${a.provider} / ${a.actual_model??a.model} · ${label(a.status)} · ${ms(a.duration_ms)}`));
       call.append(payloadView("发送给大模型的数据",a.payload?.request),payloadView("大模型返回的数据",a.payload?.response));host.append(call);
     });
+    if(d.animation){
+      host.append(node('h3','组合动画时间线'),node('p',`场景：${d.animation.plan.scene} · 来源：${({preset:'场景预设',model:'模型编排',local:'本地编排',replay:'手动重放'})[d.animation.source]??d.animation.source} · 共 ${d.animation.plan.steps.length} 步`));
+      const timeline=node('div',null,'table-wrap');
+      table(timeline,['步骤 / 时长','眼型','看向 X / Y','大小','抖动 / 眨眼 / 过渡'],d.animation.plan.steps.map((s,i)=>[`${i+1} · ${s.duration_ms} ms`,window.RoundEyesEmotionUI.badge(s.emotion),`${s.look_x} / ${s.look_y}`,s.scale,`${s.shake} / ${s.blink}${s.blink_once?"（眨一下）":""} / ${s.transition_ms} ms`]));host.append(timeline,window.RoundEyesEmotionUI.animation(d.animation.plan));
+      const replay=node('button','在板子上重放动画');replay.onclick=async()=>{replay.disabled=true;try{await api.call('animation',{plan:d.animation.plan});api.notify('动画已交给板子播放');}catch(e){fail(e);}finally{replay.disabled=false;}};host.append(replay);
+    }
     host.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   async function usage() {
@@ -404,6 +411,7 @@
       $("speaker-enroll").disabled=!!active;$("speaker-name").disabled=!!active;$("speaker-cancel").hidden=!active;$("speaker-next").hidden=!e||!['next_sample','failed'].includes(e.state);
       $("speaker-next").textContent=e?.state==='failed'?"重试这一段":"开始下一段";
       $("speaker-enrollment").textContent=!e?"准备好后开始第一段。":e.state==='recording'?`第 ${e.samples+1}/3 段：请自然说话，还剩 ${Math.max(0,Math.ceil((e.until-Date.now())/1000))} 秒`:e.state==='analyzing'?"正在本地检查音量与声纹…":e.state==='complete'?"三段录入完成，声纹已保存。":e.state==='failed'?"这一段未通过："+e.error+"。请调整距离后重试。":`已完成 ${e.samples}/3 段，请开始下一段。`;
+      if(!$('animation-presets').children.length){const presets=await api.call('animation-presets',{});for(const p of presets){const b=node('button',p.label,'quiet');b.onclick=async()=>{b.disabled=true;try{await api.call('animation',{preset:p.id});api.notify('已播放：'+p.label);}catch(e){fail(e);}finally{b.disabled=false;}};$('animation-presets').append(b);}}
       if(!speakerInitialized){const cfg=api.state().settings.ambient;$("ambient-enabled").checked=cfg.enabled;$("speaker-filter").checked=cfg.speaker_filter===true;$("local-asr").checked=api.state().settings.performance.local_asr;$("fast-reactions").checked=api.state().settings.performance.fast_reactions;$("ambient-wait").value=cfg.wait_seconds;$("ambient-silence").value=cfg.silence_ms;$("ambient-threshold").value=cfg.threshold;$("ambient-margin").value=cfg.margin;speakerInitialized=true;updateFilterControls();}
     }finally{speakerLoading=false;}
   }

@@ -3,7 +3,8 @@ import { finishResponse, usageFrom } from "../ledger/journal.js";
 import type { Brain, Reaction, Message } from "../contracts.js";
 import { parseReaction } from "../protocol/schema.js";
 import { request, sse, readModelBody, type Fetch } from "./http.js";
-import { REACTION_PROMPT, REPLY_PROMPT } from "./prompts.js";
+import { REACTION_PROMPT, REPLY_PROMPT, ANIMATION_PROMPT } from "./prompts.js";
+import {parseAnimationChoice,type AnimationPlan} from '../voice/animation.js';
 export class DeepSeekBrain implements Brain {
   private fetcher: Fetch;
   constructor(
@@ -22,15 +23,16 @@ export class DeepSeekBrain implements Brain {
     signal: AbortSignal,
     reaction: boolean,
     repair = false,
+    animation = false,
   ) {
     const payload = {
       model: this.options.model ?? "deepseek-flash",
       thinking: { type: "disabled" },
       stream: !reaction,
       ...(!reaction ? { stream_options: { include_usage: true } } : {}),
-      max_tokens: reaction ? 128 : 512,
+      max_tokens: reaction ? (animation ? 768 : 128) : 512,
       messages: reaction ? [
-        {role:"system",content:REACTION_PROMPT+(repair?"\n上次输出未通过校验。这次必须返回一个非空 JSON 对象，例如 {\"emotion\":\"happy\",\"hold_ms\":2500}；不要只返回空白。":"")},
+        {role:"system",content:(animation?ANIMATION_PROMPT:REACTION_PROMPT)+(repair?"\n上次输出未通过校验。这次必须返回一个非空 JSON 对象，例如一个符合上述schema的JSON对象；不要只返回空白。":"")},
         // Prior eye labels are context data, not invalid assistant JSON examples.
         {role:"user",content:JSON.stringify({recent_interactions:history,user_utterance:text})},
       ] : [
@@ -59,13 +61,16 @@ export class DeepSeekBrain implements Brain {
       },
     );
   }
-  async reaction(
+  async reaction(text:string,history:Message[],signal:AbortSignal):Promise<Reaction>{return await this.structured(text,history,signal) as Reaction;}
+  async animation(text:string,history:Message[],signal:AbortSignal):Promise<AnimationPlan>{return await this.structured(text,history,signal,true) as AnimationPlan;}
+  private async structured(
     text: string,
     history: Message[],
     signal: AbortSignal,
-  ): Promise<Reaction> {
+    animation=false,
+  ): Promise<Reaction|AnimationPlan> {
     for(let attempt=0;attempt<2;attempt++) {
-      const response = await this.call(text, history, signal, true, attempt>0);
+      const response = await this.call(text, history, signal, true, attempt>0, animation);
       let body:any, raw:{text:string;truncated:boolean}|undefined;
       try {
         raw=await readModelBody(response);
@@ -76,8 +81,8 @@ export class DeepSeekBrain implements Brain {
         throw e;
       }
       const content=body.choices?.[0]?.message?.content;
-      let reaction:Reaction|undefined;
-      try {if(typeof content==="string"&&content.trim())reaction=parseReaction(JSON.parse(content));} catch {}
+      let reaction:Reaction|AnimationPlan|undefined;
+      try {if(typeof content==="string"&&content.trim())reaction=animation?parseAnimationChoice(JSON.parse(content)):parseReaction(JSON.parse(content));} catch {}
       const error=typeof content!=="string"||!content.trim()?"provider_reaction_empty":"provider_reaction_format";
       await finishResponse(response,reaction?"completed":"failed",{
         ...(reaction?{}:{error}),usage:usageFrom(body.usage),actual_model:body.model,request_id:body.id,response_data:body,

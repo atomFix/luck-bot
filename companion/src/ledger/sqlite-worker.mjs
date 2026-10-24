@@ -16,7 +16,7 @@ try {
   chmodSync(path, 0o600);
   db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000");
   const version = db.prepare("PRAGMA user_version").get().user_version;
-  if (version > 3) throw new Error("storage_future_schema");
+  if (version > 4) throw new Error("storage_future_schema");
   if (version < 1) {
     if (existed) {
       const backup = path + ".pre-v1-" + now();
@@ -39,6 +39,7 @@ try {
     db.exec(`BEGIN;CREATE TABLE model_payloads(attempt_id TEXT PRIMARY KEY REFERENCES provider_attempts(id) ON DELETE CASCADE,request_data TEXT,response_data TEXT);INSERT INTO schema_migrations VALUES(2,${now()});PRAGMA user_version=2;COMMIT;`);
   }
   if(version < 3){db.exec(`BEGIN;CREATE TABLE turn_audio(turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,pcm BLOB NOT NULL,sample_rate INTEGER NOT NULL,duration_ms REAL NOT NULL);INSERT OR IGNORE INTO admin_settings VALUES('record_audio','false');INSERT INTO schema_migrations VALUES(3,${now()});PRAGMA user_version=3;COMMIT;`);}
+  if(version<4){db.exec(`BEGIN;CREATE TABLE IF NOT EXISTS turn_animations(turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,plan TEXT NOT NULL,source TEXT NOT NULL);INSERT OR IGNORE INTO schema_migrations VALUES(4,${now()});PRAGMA user_version=4;COMMIT;`);}
   db.exec(
     "PRAGMA journal_mode=WAL; UPDATE turns SET status='interrupted',error='app_interrupted' WHERE status='running';UPDATE provider_attempts SET status='interrupted',error='usage_unknown' WHERE status='running';",
   );
@@ -171,7 +172,7 @@ function enrichTurn(turn) {
 }
 function execute(op, i) {
   if (initError) throw new Error(initError);
-  if (op === "ready") return { version: 3, record_text: recordText() };
+  if (op === "ready") return { version: 4, record_text: recordText() };
   if (op === "close") {
     db.close();
     return { ok: true };
@@ -385,12 +386,14 @@ function execute(op, i) {
       page_size: size,
     };
   }
+  if(op==='saveAnimation') {identifier(i.turn_id);identifier(i.source);const plan=capturePayload(i.plan);if(plan.truncated)throw Error('animation_size');db.prepare('INSERT OR REPLACE INTO turn_animations VALUES(?,?,?)').run(i.turn_id,json(plan.data),i.source);return {ok:true};}
   if (op === "detail") {
     identifier(i.id);
     const turn = db.prepare("SELECT * FROM turns WHERE id=?").get(i.id);
     if (!turn) throw new Error("turn_unknown");
     return {
       turn,
+      animation:(()=>{const a=db.prepare('SELECT plan,source FROM turn_animations WHERE turn_id=?').get(i.id);return a?{plan:parse(a.plan),source:a.source}:null;})(),
       audio:db.prepare("SELECT length(pcm) as bytes,sample_rate,duration_ms FROM turn_audio WHERE turn_id=?").get(i.id)??null,
       spans: db
         .prepare("SELECT * FROM turn_spans WHERE turn_id=? ORDER BY rowid")

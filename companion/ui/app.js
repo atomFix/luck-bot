@@ -29,5 +29,6 @@ for(const [id,action] of [['disconnect','disconnect'],['interrupt','interrupt'],
 $('revoke').onclick=()=>run($('revoke'),async()=>{await api('revoke-controller',{});notify('设备授权已撤销，重新使用需要 USB 配对');});
 $('legacy').onclick=()=>run($('legacy'),async()=>{await api('mode',{mode:'xiaozhi'});notify('已切回小智模式');});
 $('react').onclick=()=>run($('react'),()=>api('react',{device_id:$('devices').value,emotion:$('emotion').value,hold_ms:1600,source:'manual'}));
+$('story-send').onclick=()=>run($('story-send'),async()=>{notify('正在编排故事反应…');await api('story-text',{device_id:$('devices').value,text:$('text').value});notify('组合动画已交给板子播放，不生成语音');});
 $('send').onclick=()=>run($('send'),async()=>{notify('正在理解…');const r=await api('text',{device_id:$('devices').value,text:$('text').value,speak:$('speak').checked});$('reply').textContent=r.reply;notify('本轮已完成');});
 (async()=>{try{const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);const auth=token?await api('bootstrap',{token}):await api('session');csrf=auth.csrf;notify('本机程序已就绪');await refresh();window.roundEyesApi={call:api,state:()=>state,notify,refresh};window.dispatchEvent(new Event('roundeyes:ready'));setInterval(()=>refresh().catch(()=>notify('本机程序已断开')),2000);}catch(e){notify('请从 Round Eyes Companion 程序重新打开设置：'+e.message);}})();

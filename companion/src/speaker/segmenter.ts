@@ -14,9 +14,11 @@ export class AmbientSegmenter {
   private dropping=false;
   private quietMs=0;
   private bytes = 0;
+  private restart=false;private voicedAt=0;
   constructor(
     private scorer: () => SpeechScorer = () => new SileroScorer(),
     private silenceMs = 1000,
+    private windowMs=0,
   ) {
     this.endpoint = this.fresh();
   }
@@ -26,7 +28,7 @@ export class AmbientSegmenter {
       continuous: true,
       speechFrames: 2,
       silenceMs: this.silenceMs,
-      maxSpeechMs: this.dropping?Number.MAX_SAFE_INTEGER:29500,
+      maxSpeechMs: this.dropping||this.windowMs>0?Number.MAX_SAFE_INTEGER:29500,
     });
   }
   start(stream: number) {
@@ -37,7 +39,7 @@ export class AmbientSegmenter {
     this.reset();
   }
   reset() {
-    this.dropping=false;this.quietMs=0;
+    this.dropping=false;this.quietMs=0;this.restart=false;this.voicedAt=0;
     this.endpoint = this.fresh();
     this.pre = [];
     this.chunks = [];
@@ -50,7 +52,7 @@ export class AmbientSegmenter {
   ): Promise<
     | { type: "start";pcm:Uint8Array }
     | { type:"ignored";code:"utterance_too_long" }
-    | { type: "end"; pcm: Uint8Array; voiced_ms: number }
+    | { type: "end"; pcm: Uint8Array; voiced_ms: number;continued?:boolean }
     | null
   > {
     if (
@@ -91,14 +93,19 @@ export class AmbientSegmenter {
       this.bytes = this.chunks.reduce((n, b) => n + b.length, 0);
       return { type: "start",pcm:Buffer.concat(this.chunks) };
     }
+    if(this.restart){this.restart=false;return {type:'start',pcm:Buffer.concat(this.chunks)};}
     if (ended) {
       const result = {
         type: "end" as const,
         pcm: Buffer.concat(this.chunks),
-        voiced_ms: this.endpoint.stats.voiced_ms,
+        voiced_ms: this.endpoint.stats.voiced_ms-this.voicedAt,
       };
       this.reset();
       return result;
+    }
+    if(this.active&&this.windowMs>0&&this.bytes>=this.windowMs*32){
+      const result={type:'end' as const,pcm:Buffer.concat(this.chunks),voiced_ms:this.endpoint.stats.voiced_ms-this.voicedAt,continued:true};
+      this.voicedAt=Math.max(0,this.endpoint.stats.voiced_ms-384);this.chunks=this.chunks.slice(-20);this.bytes=this.chunks.length*640;this.restart=true;return result;
     }
     return null;
   }

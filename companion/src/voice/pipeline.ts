@@ -1,5 +1,6 @@
+import {reactionAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,type AnimationPlan} from './animation.js';
 import {performReaction} from './reaction-performance.js';
-import {localReaction} from './fast-reaction.js';
+import {localReaction,requestedExpression} from './fast-reaction.js';
 import { currentJournal } from "../ledger/journal.js";
 import { performance } from "node:perf_hooks";
 import type {
@@ -17,6 +18,8 @@ import { History } from "./history.js";
 import { wav16k } from "./utterance.js";
 type Options = {
   asrModel?: string;
+  animations?:boolean;
+  thinking?:()=>Promise<unknown>;
   brain: Brain;
   device: DeviceClient;
   asr: Asr;
@@ -29,8 +32,10 @@ export class VoicePipeline {
   private turns = new TurnManager();
   private history = new History();
   private speakerHistory = new Map<string, History>();
+  private animationStates=new Map<string,{plan:AnimationPlan;at:number}>();
   constructor(private options: Options) {}
   async interrupt() {
+    this.animationStates.clear();
     const old = this.turns.number;
     this.turns.cancel();
     if (old) {
@@ -42,12 +47,13 @@ export class VoicePipeline {
   }
   clearHistory() {
     this.history.clear();
-    this.speakerHistory.clear();
+    this.speakerHistory.clear();this.animationStates.clear();
   }
   clearSpeaker(id: string) {
-    this.speakerHistory.delete(id);
+    this.speakerHistory.delete(id);this.animationStates.delete(id);
   }
   async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>, local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}) {
+    if(this.options.animations&&this.options.device.animate&&this.options.brain.animation)return this.animatedExpression(pcm,id,speaker,local);
     const turn = await this.begin(id);
     // begin() may cancel the previous turn, clearing its temporary eye layer.
     await this.options.device.react({emotion:"thinking",hold_ms:3000},turn,"voice");
@@ -100,6 +106,30 @@ export class VoicePipeline {
     history.add(text, "表情：" + reaction.emotion);
     return reaction;
     } finally {stopThinking();}
+  }
+
+  private async animatedExpression(pcm:Uint8Array,id:number,speaker:string,local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}){
+    // Advancing the semantic turn must not cancel the previous board animation.
+    const turn=this.turns.start(id);await this.options.thinking?.();this.check(turn);
+    const began=performance.now();const text=local?.text??await this.options.asr.transcribe(wav16k(pcm),turn.signal);this.check(turn);
+    currentJournal()?.patch({user_text:text||null,device_turn:turn.id});
+    const meta={event:local?.text!==undefined?'asr.local.done':'asr.done',turn:turn.id,duration_ms:local?.asr_ms??Math.round(performance.now()-began),model:local?.model??this.options.asrModel};
+    if(this.options.diagnose)this.options.diagnose(meta);else currentJournal()?.event(meta);
+    if(!text.trim())return;
+    let history=this.speakerHistory.get(speaker);if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(64,16000);this.speakerHistory.set(speaker,history);}
+    const quick=local?.fast?localReaction(text,history.snapshot()):null;
+    const context=history.snapshot(),previous=this.animationStates.get(speaker);
+    if(previous)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(animationPosition(previous.plan,Math.round(performance.now()-previous.at)))});
+    const plan=quick?(requestedExpression(text)?reactionAnimation(quick):socialAnimation(quick,text)):await this.options.brain.animation!(text,context,turn.signal);this.check(turn);
+    const emotion=primaryEmotion(plan),duration=plan.steps.reduce((n,s)=>n+s.duration_ms,0);
+    await currentJournal()?.saveAnimation(plan,quick?'local':animationSource(plan));
+    const started=performance.now();await this.options.device.animate!(plan,turn);this.check(turn);
+    if(this.animationStates.size>=10&&!this.animationStates.has(speaker))this.animationStates.delete(this.animationStates.keys().next().value!);this.animationStates.set(speaker,{plan,at:performance.now()});
+    const event={event:'animation.applied',turn:turn.id,duration_ms:Math.round(performance.now()-started),code:plan.scene};
+    if(this.options.diagnose)this.options.diagnose(event);else currentJournal()?.event(event);
+    currentJournal()?.patch({emotion,hold_ms:duration});
+    history.add(text,'表情：'+emotion+'；动画：'+plan.scene);
+    return {emotion,hold_ms:duration};
   }
 
   private async begin(id?: number) {

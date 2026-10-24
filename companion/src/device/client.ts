@@ -1,6 +1,7 @@
 import {EventEmitter} from 'node:events';import {performance} from 'node:perf_hooks';import type WebSocket from 'ws';
 import type {DeviceClient,DeviceStatus,Reaction,Turn,Applied,AudioFrame,Secrets} from '../contracts.js';
 import {encodeAudio,decodeAudio} from '../protocol/audio-frame.js';import {parseReaction} from '../protocol/schema.js';import {toDeviceDeadline} from '../protocol/clock.js';
+import {AnimationSchema,type AnimationPlan} from '../voice/animation.js';
 import {pinnedSocket,type PairingRecord} from './pinned-transport.js';
 export function connectionFailure(error:unknown):Error {
  const code=typeof error==='object'&&error!==null&&'code' in error ? String(error.code) : '';
@@ -26,6 +27,8 @@ export class DeviceConnection extends EventEmitter implements DeviceClient {
   ws.on('close',()=>this.disconnected());ws.on('error',()=>this.disconnected());
   this.heartbeat=setInterval(()=>{void this.command('heartbeat',{},this.turn).then(()=>this.status(new AbortController().signal)).catch(()=>this.close());},5000);this.heartbeat.unref();
  }
+ private animationUntil=0;
+ get animationActive(){return performance.now()<this.animationUntil;}
  get currentTurn(){return this.turn;}
  get info(){return {...this.state,turn_seq:this.turn};}
  private disconnected(){if(this.closed)return;this.closed=true;clearInterval(this.heartbeat);for(const p of this.pending.values()){p.cleanup();p.reject(new Error('disconnected'));}this.pending.clear();this.emit('disconnected');}
@@ -47,16 +50,17 @@ export class DeviceConnection extends EventEmitter implements DeviceClient {
   });
  }
  async listen(enabled:boolean,purpose:'ambient'|'enroll'='ambient'){return this.command('listen',{enabled,purpose},this.turn);}
- async processingPose(active:boolean){return this.command('reaction',{emotion:active?'thinking':'neutral',hold_ms:active?3000:300,source:'voice'},this.turn);}
- async listenPose(listening:boolean){return this.command('listen_pose',{listening},this.turn);}
+ async processingPose(active:boolean){if(this.animationActive)return;return this.command('reaction',{emotion:active?'thinking':'neutral',hold_ms:active?3000:300,source:'voice'},this.turn);}
+ async listenPose(listening:boolean){if(listening&&this.animationActive)return;return this.command('listen_pose',{listening},this.turn);}
  async status(signal:AbortSignal):Promise<DeviceStatus>{return this.command('status',{},this.turn,signal);}
- async react(value:Reaction,turn:Turn,source:'voice'|'manual'|'agent'):Promise<Applied>{return this.command('reaction',{...parseReaction(value),source},turn.id,turn.signal);}
+ async animate(value:AnimationPlan,turn:Turn):Promise<Applied>{if(!this.state.capabilities?.includes('animation_v1'))throw new Error('firmware_update_required');const plan=AnimationSchema.parse(value);const result=await this.command('animation',plan,turn.id,turn.signal);this.animationUntil=performance.now()+plan.steps.reduce((n,s)=>n+s.duration_ms,0);return result;}
+ async react(value:Reaction,turn:Turn,source:'voice'|'manual'|'agent'):Promise<Applied>{this.animationUntil=0;return this.command('reaction',{...parseReaction(value),source},turn.id,turn.signal);}
  async revokeController(controller_id:string):Promise<void>{if(!/^[a-f0-9]{16}$/.test(controller_id))throw new Error('controller_id');await this.command('revoke',{controller_id},this.turn);}
  async mode(mode:'companion'|'xiaozhi'):Promise<void>{await this.command('mode',{mode},this.turn);this.state.mode=mode;}
  async play(frame:AudioFrame,turn:Turn):Promise<void>{turn.signal.throwIfAborted();if(this.closed||frame.turn_seq!==turn.id||turn.id!==this.turn)throw new Error('stale');
   if(this.ws.bufferedAmount>20000)throw new Error('overflow');await new Promise<void>((resolve,reject)=>this.ws.send(encodeAudio(frame),error=>error?reject(new Error('audio_send')):resolve()));
  }
- async cancel(turn:number):Promise<void>{if(!this.closed&&turn>=this.turn)await this.command('cancel',{},turn);}
+ async cancel(turn:number):Promise<void>{this.animationUntil=0;if(!this.closed&&turn>=this.turn)await this.command('cancel',{},turn);}
  async release():Promise<void>{if(!this.closed)await this.command('release',{},this.turn);this.close();}
 }
 export async function connect(p:PairingRecord,secrets:Secrets,signal:AbortSignal):Promise<DeviceConnection>{

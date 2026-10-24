@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-24",
+  "capability": "animation_v1",
+  "firmware_sha256": "8aa76a5a99d6fa17502d36e874754728016f85cd834d4400e59e9061291dbda5",
+  "checks": {
+    "typescript_tests": 150,
+    "typescript_execution": "serial; parallel audio timing probe had one contention failure, serial suite passed",
+    "cpp_suites": [
+      "eyes_model",
+      "triangulate",
+      "protocol",
+      "dirty_region",
+      "rasterize",
+      "timeline",
+      "signals",
+      "companion_protocol",
+      "pairing",
+      "session",
+      "audio",
+      "layers"
+    ],
+    "firmware_build": true,
+    "installed_model_probe": true,
+    "tls_pairing_preserved": true,
+    "schema": 4
+  },
+  "model_cases": [
+    {
+      "scene": "horror",
+      "steps": 7,
+      "latency_ms": 713,
+      "attempts": 1
+    },
+    {
+      "scene": "relief",
+      "steps": 5,
+      "latency_ms": 623,
+      "attempts": 1
+    },
+    {
+      "scene": "custom",
+      "steps": 4,
+      "latency_ms": 1534,
+      "attempts": 1
+    },
+    {
+      "scene": "custom",
+      "steps": 4,
+      "latency_ms": 982,
+      "attempts": 1
+    },
+    {
+      "scene": "custom",
+      "steps": 4,
+      "latency_ms": 896,
+      "attempts": 1
+    }
+  ],
+  "board_observations": [
+    {
+      "label": "preset acknowledged",
+      "connected": true,
+      "animation_active": false,
+      "turn": 1,
+      "listening": "paused",
+      "error": ""
+    },
+    {
+      "label": "6 seconds with no further animation packets",
+      "connected": true,
+      "animation_active": true,
+      "turn": 1,
+      "listening": "listening",
+      "error": ""
+    },
+    {
+      "label": "new story transition acknowledged",
+      "connected": true,
+      "animation_active": true,
+      "turn": 2,
+      "listening": "paused",
+      "error": ""
+    },
+    {
+      "label": "custom sequence acknowledged",
+      "connected": true,
+      "animation_active": true,
+      "turn": 3,
+      "listening": "paused",
+      "error": ""
+    },
+    {
+      "label": "sequence expiration",
+      "connected": true,
+      "animation_active": false,
+      "turn": 3,
+      "listening": "listening",
+      "error": ""
+    }
+  ],
+  "renderer": {
+    "refresh_fps_range": [
+      25.4,
+      25.9
+    ],
+    "max_refresh_us": 195499,
+    "panic_detected": false
+  },
+  "limits": [
+    "Physical expression appearance still needs user observation",
+    "Continuous window framing verified with synthetic audio frames; a live long-story microphone acceptance has not yet been performed",
+    "Browser preview illustrates choreography, not exact board spring and raster timing",
+    "No claim of sub-40ms worst-case frame latency"
+  ]
+}

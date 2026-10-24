@@ -76,6 +76,7 @@ export class TurnJournal {
       at_ms: Math.round(performance.now() - c.began),
     });
   }
+  async saveAnimation(plan:unknown,source:string){const context=scope.getStore();if(context?.journal===this)await this.ledger.call('saveAnimation',{turn_id:context.id,plan,source});}
   recordAudio(pcm:Uint8Array,id=scope.getStore()?.id){
     if(!id)return;const context=this.active.get(id);if(context)this.write(context,"saveAudio",{id,pcm});
   }

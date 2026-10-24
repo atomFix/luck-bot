@@ -31,3 +31,9 @@ test('temporary thinking uses firmware-valid holds without advancing voice turns
  w.emit('message',Buffer.from(JSON.stringify({type:'ack',command_id:command.command_id,applied_uptime_ms:2})),false);await pending;
  }}finally{c.close();}
 });
+test('a complete bounded animation is sent once and playing animation is preserved during new listening',async()=>{
+ const {parseAnimationChoice}=await import('../src/voice/animation.js');const w=new Wire();const c=new DeviceConnection(w as any,{...status,capabilities:['animation_v1']});try{
+ const plan=parseAnimationChoice({preset:'horror'});const pending=c.animate(plan,{id:1,signal:new AbortController().signal});const command=w.sent.at(-1);assert.equal(command.type,'animation');assert.equal(command.payload.steps.length,7);assert(Buffer.byteLength(JSON.stringify(command))<=4096);
+ w.emit('message',Buffer.from(JSON.stringify({type:'ack',command_id:command.command_id,applied_uptime_ms:2})),false);await pending;const before=w.sent.length;await c.listenPose(true);await c.processingPose(true);assert.equal(w.sent.length,before);assert(c.animationActive);
+ }finally{c.close();}
+});

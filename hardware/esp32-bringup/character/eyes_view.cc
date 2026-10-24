@@ -29,6 +29,7 @@ void EyesView::Refresh(lv_event_t* event){
 }
 void EyesView::Update(uint64_t now){
  auto start=esp_timer_get_time();auto signal=AnimationSignals::Instance().Read(now);
+ model_.SetMotion(signal.critical?MotionCue{}:AnimationSignals::Instance().timeline.Read(now));
  model_.SetBehavior(signal.behavior,now);model_.ObserveAudio(signal.energy,signal.audio_at_ms);auto frame=model_.Tick(now);
  auto r=dirty_.Update(frame);Rasterize(frame,r,pixels_);
  lv_area_t bounds;lv_obj_get_coords(object_,&bounds);

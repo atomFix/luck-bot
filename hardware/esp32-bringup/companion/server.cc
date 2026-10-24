@@ -7,6 +7,7 @@
 #include "protocol.h"
 #include "application.h"
 #include "animation_signals.h"
+#include "eye_poses.h"
 #include "board.h"
 #include "display.h"
 #include "wifi_station.h"
@@ -62,11 +63,11 @@ bool StartBackground(const std::string& purpose){
  auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","ambient.start");cJSON_AddNumberToObject(o,"stream_id",stream);cJSON_AddStringToObject(o,"purpose",purpose.c_str());Send(Json(o));
  auto& app=Application::GetInstance();app.SetDeviceState(kDeviceStateIdle);round_eyes::AnimationSignals::Instance().SetCompanionPose(1,layers.ManualActive(Now()));if(!app.GetAudioService().EnableCompanionCapture(true,true)){StopBackground("background_incompatible");return false;}return true;
 }
-void CancelAudio(){StopCapture();Application::GetInstance().GetAudioService().CancelCompanionPlayback();receiver.Reset();layers.Clear();shown.clear();auto sid=session?session->id():"";auto turn=session?session->turn():0;Application::GetInstance().Schedule([sid,turn](){std::lock_guard<std::recursive_mutex> guard(mu);if(enabled&&!critical&&(!session->Active(Now())||(session->id()==sid&&session->turn()==turn))){Application::GetInstance().SetDeviceState(kDeviceStateIdle);shown.clear();}});}
+void CancelAudio(){round_eyes::AnimationSignals::Instance().timeline.Clear();StopCapture();Application::GetInstance().GetAudioService().CancelCompanionPlayback();receiver.Reset();layers.Clear();shown.clear();auto sid=session?session->id():"";auto turn=session?session->turn():0;Application::GetInstance().Schedule([sid,turn](){std::lock_guard<std::recursive_mutex> guard(mu);if(enabled&&!critical&&(!session->Active(Now())||(session->id()==sid&&session->turn()==turn))){Application::GetInstance().SetDeviceState(kDeviceStateIdle);shown.clear();}});}
 void Drop(){StopBackground("disconnected");CancelAudio();if(session)session->Release();int fd=socket_fd;socket_fd=-1;if(server&&fd>=0)httpd_sess_trigger_close(server,fd);}
 std::string Info(bool private_info=false){auto o=cJSON_CreateObject();cJSON_AddNumberToObject(o,"v",1);cJSON_AddStringToObject(o,"type",private_info?"status":"info");cJSON_AddStringToObject(o,"device_id",identity.device().c_str());cJSON_AddStringToObject(o,"boot_id",identity.boot().c_str());cJSON_AddNumberToObject(o,"uptime_ms",Now());cJSON_AddStringToObject(o,"mode",enabled?"companion":"xiaozhi");
- auto caps=cJSON_AddArrayToObject(o,"capabilities");if(Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture())cJSON_AddItemToArray(caps,cJSON_CreateString("ambient_v1"));
- if(private_info){cJSON_AddBoolToObject(o,"background_active",background_active);cJSON_AddBoolToObject(o,"critical",critical);cJSON_AddBoolToObject(o,"capture_active",capture.active());cJSON_AddNumberToObject(o,"capture_samples",capture_samples);cJSON_AddBoolToObject(o,"input_vad",Application::GetInstance().GetAudioService().IsVoiceDetected());cJSON_AddStringToObject(o,"session_id",session->id().c_str());cJSON_AddStringToObject(o,"lease","ours");cJSON_AddNumberToObject(o,"turn_seq",session->turn());}return Json(o);}
+ auto caps=cJSON_AddArrayToObject(o,"capabilities");cJSON_AddItemToArray(caps,cJSON_CreateString("animation_v1"));if(Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture())cJSON_AddItemToArray(caps,cJSON_CreateString("ambient_v1"));
+ if(private_info){cJSON_AddBoolToObject(o,"animation_active",round_eyes::AnimationSignals::Instance().timeline.Read(Now()).active);cJSON_AddBoolToObject(o,"background_active",background_active);cJSON_AddBoolToObject(o,"critical",critical);cJSON_AddBoolToObject(o,"capture_active",capture.active());cJSON_AddNumberToObject(o,"capture_samples",capture_samples);cJSON_AddBoolToObject(o,"input_vad",Application::GetInstance().GetAudioService().IsVoiceDetected());cJSON_AddStringToObject(o,"session_id",session->id().c_str());cJSON_AddStringToObject(o,"lease","ours");cJSON_AddNumberToObject(o,"turn_seq",session->turn());}return Json(o);}
 void UpdateLayers(){if(critical||!enabled)return;auto now=Now();if(pose_mode)round_eyes::AnimationSignals::Instance().SetCompanionPose(pose_mode,layers.ManualActive(now));std::string target=layers.Current(now);
  if(target!=shown){shown=target;Application::GetInstance().Schedule([target](){std::lock_guard<std::recursive_mutex> lock(mu);if(!critical&&enabled&&shown==target)Board::GetInstance().GetDisplay()->SetEmotion(target.c_str());});}
 }
@@ -91,7 +92,7 @@ esp_err_t Ws(httpd_req_t* req){
  if(req->method==HTTP_GET){if(socket_fd>=0&&socket_fd!=fd)return ESP_FAIL;socket_fd=fd;connected_at=Now();return ESP_OK;}
  if(fd!=socket_fd)return ESP_FAIL;
  httpd_ws_frame_t frame{};esp_err_t e=httpd_ws_recv_frame(req,&frame,0);if(e!=ESP_OK)return e;
- if(frame.len>2048)return ESP_FAIL;
+ if(frame.len>4096)return ESP_FAIL;
  std::array<uint8_t,2049> data{};frame.payload=data.data();if(httpd_ws_recv_frame(req,&frame,frame.len)!=ESP_OK)return ESP_FAIL;
  if(frame.type==HTTPD_WS_TYPE_CLOSE){Drop();return ESP_OK;}
  if(frame.type==HTTPD_WS_TYPE_PING){frame.type=HTTPD_WS_TYPE_PONG;return httpd_ws_send_frame(req,&frame);}
@@ -113,8 +114,25 @@ esp_err_t Ws(httpd_req_t* req){
  auto command=String(raw,"command_id");uint32_t seq,turn,deadline,version;
  if(!Number(raw,"v",version)||version!=1||String(raw,"device_id")!=identity.device()||command.empty()||command.size()>64||!Number(raw,"seq",seq)||!Number(raw,"turn_seq",turn)||!Number(raw,"deadline_ms",deadline)){Error("format",command);return ESP_OK;}
  auto payload=cJSON_GetObjectItem(raw,"payload");uint32_t hold=0;std::string emotion,source;
+ round_eyes::AnimationPlan animation;
  bool listen_enabled=false,listening_pose=false;std::string purpose;Scope required=Scope::status;
  if(type=="reaction"){required=Scope::reaction;emotion=String(payload,"emotion");source=String(payload,"source");if(!Number(payload,"hold_ms",hold)||!ValidReaction(emotion.c_str(),hold)||(source!="manual"&&source!="voice"&&source!="agent")){Error("format",command);return ESP_OK;}}
+ else if(type=="animation"){
+  required=Scope::reaction;auto steps=cJSON_GetObjectItemCaseSensitive(payload,"steps");
+  if(!cJSON_IsArray(steps)||cJSON_GetArraySize(steps)<1||cJSON_GetArraySize(steps)>12){Error("animation_format",command);return ESP_OK;}
+  animation.count=cJSON_GetArraySize(steps);
+  for(size_t i=0;i<animation.count;i++){
+   auto item=cJSON_GetArrayItem(steps,i);auto& s=animation.steps[i];uint32_t duration,transition=300;
+   auto key=String(item,"emotion");size_t e=0;for(;e<round_eyes::kEmotions.size();e++)if(key==round_eyes::kEmotions[e].key)break;
+   if(e==round_eyes::kEmotions.size()||!Number(item,"duration_ms",duration)||duration>5000){Error("animation_format",command);return ESP_OK;}
+   s.duration_ms=duration;s.motion.emotion=e;
+   auto field=[&](const char* name,float& out){auto v=cJSON_GetObjectItemCaseSensitive(item,name);if(!v)return true;if(!cJSON_IsNumber(v))return false;out=v->valuedouble;return true;};
+   if(!field("look_x",s.motion.look_x)||!field("look_y",s.motion.look_y)||!field("scale",s.motion.scale)||!field("shake",s.motion.shake)||!field("blink",s.motion.blink)||(cJSON_HasObjectItem(item,"transition_ms")&&!Number(item,"transition_ms",transition))||transition>1500){Error("animation_format",command);return ESP_OK;}
+   s.motion.transition_ms=transition;
+   auto blink_once=cJSON_GetObjectItemCaseSensitive(item,"blink_once");if(blink_once&&!cJSON_IsBool(blink_once)){Error("animation_format",command);return ESP_OK;}s.motion.blink_once=cJSON_IsTrue(blink_once);
+  }
+  if(!round_eyes::ValidAnimation(animation)){Error("animation_format",command);return ESP_OK;}
+ }
  else if(type=="listen"){required=Scope::owner;auto value=cJSON_GetObjectItemCaseSensitive(payload,"enabled");purpose=String(payload,"purpose");if(!cJSON_IsBool(value)||(cJSON_IsTrue(value)&&purpose!="ambient"&&purpose!="enroll")){Error("format",command);return ESP_OK;}listen_enabled=cJSON_IsTrue(value);}
  else if(type=="listen_pose"){required=Scope::owner;auto value=cJSON_GetObjectItemCaseSensitive(payload,"listening");if(!cJSON_IsBool(value)){Error("format",command);return ESP_OK;}listening_pose=cJSON_IsTrue(value);}
  else if(type=="mode"||type=="revoke")required=Scope::owner;
@@ -133,14 +151,19 @@ esp_err_t Ws(httpd_req_t* req){
   nvs_handle_t h;if(nvs_open("re_companion",NVS_READWRITE,&h)==ESP_OK){nvs_set_u8(h,"mode",enabled?1:0);nvs_commit(h);nvs_close(h);}
   Application::GetInstance().Schedule([](){auto& app=Application::GetInstance();app.EnterCompanionMode();});
  }
- auto sid=session->id();auto revoke_id=String(payload,"controller_id");Application::GetInstance().Schedule([type,command,emotion,source,hold,turn,sid,revoke_id,listen_enabled,listening_pose,purpose](){
+ auto sid=session->id();auto revoke_id=String(payload,"controller_id");Application::GetInstance().Schedule([type,command,emotion,source,hold,turn,sid,revoke_id,listen_enabled,listening_pose,purpose,animation](){
   std::lock_guard<std::recursive_mutex> guard(mu);if(!session||!session->Active(Now())||session->id()!=sid||session->turn()!=turn)return;
   if(type=="listen"){
    if(listen_enabled){if(!enabled||critical||!Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture()){Error("background_unavailable",command);return;}if(!StartBackground(purpose)){Error("background_incompatible",command);return;}}else StopBackground("disabled");
   }
   if(type=="listen_pose"){pose_mode=listening_pose?2:1;if(listening_pose)layers.ClearOlder(turn+1);round_eyes::AnimationSignals::Instance().SetCompanionPose(pose_mode,layers.ManualActive(Now()));UpdateLayers();}
+  if(type=="animation"){
+   if(!enabled||critical||layers.ManualActive(Now())){Error("busy",command);return;}
+   layers.Clear();shown.clear();pose_mode=1;round_eyes::AnimationSignals::Instance().SetCompanionPose(1,false);
+   round_eyes::AnimationSignals::Instance().timeline.Start(animation,Now());
+  }
   if(type=="reaction"){
-   if(!enabled||critical){Error("busy",command);return;}Application::GetInstance().SetDeviceState(kDeviceStateIdle);size_t rank=source=="manual"?0:source=="voice"?1:2;if(!layers.Put(rank,emotion,hold,turn,Now())){Error("busy",command);return;}
+   if(!enabled||critical){Error("busy",command);return;}Application::GetInstance().SetDeviceState(kDeviceStateIdle);size_t rank=source=="manual"?0:source=="voice"?1:2;if(!layers.Put(rank,emotion,hold,turn,Now())){Error("busy",command);return;}round_eyes::AnimationSignals::Instance().timeline.Clear();
    // Set the target on the application/UI boundary before acknowledging applied.
    UpdateLayers();Board::GetInstance().GetDisplay()->SetEmotion(shown.c_str());
   }

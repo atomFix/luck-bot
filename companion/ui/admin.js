@@ -365,7 +365,7 @@
   $("speaker-enroll").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-start",{name:$("speaker-name").value.trim(),enable_after:$("speaker-enable-after").checked}));
   $("speaker-next").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-next"));
   $("speaker-cancel").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-cancel"));
-  async function saveFast(preset=false){await api.refresh();const cfg=api.state().settings;await api.call("settings",{...cfg,performance:{local_asr:preset||$("local-asr").checked,fast_reactions:preset||$("fast-reactions").checked},ambient:{...cfg.ambient,...(preset?{silence_ms:600}:{})}});speakerInitialized=false;api.notify("加速设置已保存，正在恢复聆听。");}
+  async function saveFast(preset=false){await api.refresh();const cfg=api.state().settings;await api.call("settings",{...cfg,performance:{local_asr:preset||$("local-asr").checked,fast_reactions:preset||$("fast-reactions").checked},ambient:{...cfg.ambient,...(preset?{silence_ms:600}:{})}});await api.refresh();speakerInitialized=false;api.notify("加速设置已保存，正在恢复聆听。");}
   $("fast-settings").onsubmit=e=>{e.preventDefault();void speakerRun(e.submitter,()=>saveFast());};
   $("fast-preset").onclick=e=>speakerRun(e.currentTarget,()=>saveFast(true));
   $("speaker-settings").onsubmit=e=>{e.preventDefault();void speakerRun(e.submitter,()=>speaker("settings",{enabled:$("ambient-enabled").checked,wait_seconds:Number($("ambient-wait").value),silence_ms:Number($("ambient-silence").value),threshold:Number($("ambient-threshold").value),margin:Number($("ambient-margin").value)}));};

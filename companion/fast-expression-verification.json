@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-24",
+  "implementation_head": "c0bde6f",
+  "firmware_changed": false,
+  "configuration": {
+    "local_asr": true,
+    "fast_reactions": true,
+    "silence_ms": 600,
+    "speaker_threshold": 0.6,
+    "threshold_change": "Explicitly user-approved calibration for this installation only; default remains 0.7"
+  },
+  "simple_phrase_physical_acceptance": {
+    "user_feedback": "Noticeably faster and happy eyes visible",
+    "emotion": "happy",
+    "hold_ms": 2500,
+    "provider_attempts": 0,
+    "spans_ms": {
+      "capture_ended": 2128,
+      "speaker_checked": 2166,
+      "asr_local_done": 2249,
+      "reaction_local": 2249,
+      "reaction_applied": 2275
+    },
+    "endpoint_to_device_ack_ms": 147,
+    "local_finalize_ms": 28,
+    "estimated_stop_to_ack_ms": 819,
+    "estimate_basis": "600ms silence rounded to 7x96ms capture frames (672ms), plus147ms; not direct optical/physical latency measurement"
+  },
+  "complex_route_live": {
+    "local_asr_finalize_ms": [
+      14,
+      26,
+      26
+    ],
+    "deepseek_ms": [
+      937,
+      525,
+      798
+    ],
+    "provider_kinds": [
+      "reaction"
+    ],
+    "cloud_asr_calls": 0,
+    "ambient_tts_calls": 0
+  },
+  "verification": {
+    "typescript": "pass",
+    "tests_passed": 102,
+    "native_companion": "pass",
+    "native_eyes": "pass",
+    "bundle_manifest": "pass",
+    "signature_deep_strict": "pass",
+    "bundled_sqlite_reopen": "pass",
+    "bundled_speaker_probe": "finite192D synthetic, not identity acceptance",
+    "bundled_chinese_probe": {
+      "audio_ms": 5612.5625,
+      "wall_ms": 87,
+      "cpu_ms": 75,
+      "finalize_ms": 8,
+      "reference_exact": true
+    },
+    "ui_preset_regression": "Actual browser RED: stale false/false/1000 despite backend true/true/600; GREEN after awaiting authoritative refresh: true/true/600, threshold0.6 retained",
+    "final_upgrade_preservation": {
+      "settings_identical": true,
+      "encrypted_vault_identical": true,
+      "turns_before": 162,
+      "turns_after": 163,
+      "provider_attempts_before": 22,
+      "provider_attempts_after": 22
+    },
+    "exact_value_secret_scan": {
+      "secrets": 5,
+      "files": 323,
+      "leaks": 0
+    },
+    "short_board_monitor_fps": [
+      25.5,
+      25.7,
+      25.7,
+      26.8,
+      26.0
+    ]
+  },
+  "limitations": [
+    "Chinese-only local ASR; real-world transcription accuracy varies",
+    "Conservative simple-expression allowlist; complex or uncertain text uses DeepSeek",
+    "0.6 interaction speaker threshold may increase false matches; device authentication unchanged",
+    "Mixed-speaker long-session acceptance not performed",
+    "Long native-memory soak and echo/board-speaker regression not performed; board speaker absent",
+    "Existing capture audio_gap fault not claimed fixed by this acceleration change"
+  ]
+}

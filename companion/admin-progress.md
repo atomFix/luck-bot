@@ -4,3 +4,4 @@ Ruling: Execute the user-authorized work inline after writing the concrete plan,
 Pre-flight 1→2→3→4→5: Async Ledger call contract shared; attempts distinct from turns; UI-only admin scope separate from daemon control.
 Pre-flight 2→3: AsyncLocalStorage owns per-turn records; capture failures before pipeline also require a turn UUID.
 Pre-flight 1→6: SQLite worker .mjs needs build copying; bundled Node22.22.3 live probe opened SQLite3.51.3 successfully, experimental warning expected.
+Task 1: SQLite repository/money/worker tests RED missing implementation → GREEN after correcting fixture price effective date (historical request timestamps must use historical price). Persistence/reopen/interrupted recovery, private mode, exact decimal costs, idempotent terminal attempt, filters and privacy/clear confirmation covered. Full suite result recorded with commit below.

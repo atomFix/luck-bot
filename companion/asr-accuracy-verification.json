@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-24",
+  "previous_model": "zipformer-small-ctc-zh-int8-2025-04-01",
+  "model": "sensevoice-small-zh-int8-2024-07-17",
+  "language": "zh",
+  "cpu_threads": 2,
+  "model_sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+  "synthetic_probe": {
+    "source": "macOS Tingting, direct local audio, no microphone or cloud API",
+    "count": 8,
+    "old_exact_without_punctuation": 7,
+    "new_exact_without_punctuation": 8,
+    "old_decode_ms_range": [
+      24,
+      41
+    ],
+    "new_decode_ms_range": [
+      30,
+      51
+    ]
+  },
+  "real_audio_comparison": {
+    "clips": 11,
+    "audio_duration_ms_range": [
+      1260,
+      6260
+    ],
+    "new_decode_ms_range": [
+      26,
+      96
+    ],
+    "raw_audio_exported": false,
+    "cloud_api_called": false,
+    "ground_truth_labeled": false
+  },
+  "limits": [
+    "Small synthetic probe does not establish real-world accuracy",
+    "Existing recognition records are unchanged",
+    "600ms endpoint wait is separate from decode latency",
+    "Fixed Chinese mode can affect predominantly foreign-language speech"
+  ]
+}

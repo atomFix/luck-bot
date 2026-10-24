@@ -1,40 +1,38 @@
 {
-  "id": "zipformer-small-ctc-zh-int8-2025-04-01",
-  "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01.tar.bz2",
-  "archive_size": 21264113,
-  "archive_sha256": "b3b309f7ce4a737195fcc6963ea19b0653a7d3401580af5ae0d3e284cbb71f0b",
-  "upstream_asset_id": 242594222,
-  "model": "asr-zipformer-zh.int8.onnx",
-  "tokens": "asr-zipformer-zh.tokens.txt",
+  "id": "sensevoice-small-zh-int8-2024-07-17",
+  "engine": "sensevoice",
+  "language": "zh",
+  "threads": 2,
+  "model": "asr-sensevoice.int8.onnx",
+  "tokens": "asr-sensevoice.tokens.txt",
   "files": [
     {
-      "name": "asr-zipformer-zh.int8.onnx",
-      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/model.int8.onnx",
-      "size": 26342340,
-      "sha256": "68c9c943840f7d9cf3e8a4970ba50f404feb5277f611fa82b7e72267786fa84a"
+      "name": "asr-sensevoice.int8.onnx",
+      "size": 239233841,
+      "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx",
+      "mirror_url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx"
     },
     {
-      "name": "asr-zipformer-zh.tokens.txt",
-      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/tokens.txt",
-      "size": 13366,
-      "sha256": "6fed8c6c248516f38e7faa19404b57413e8ce259f1cbc1fa4aebc86eac32fdfd"
-    },
-    {
-      "name": "asr-zipformer-zh.bbpe.model",
-      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/bbpe.model",
-      "size": 255180,
-      "sha256": "503204e0690eff065e30d0e01898c9ab06d0e6dc376a741eb6846198f95b2f82"
+      "name": "asr-sensevoice.tokens.txt",
+      "size": 315894,
+      "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt",
+      "mirror_url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt"
     },
     {
       "name": "asr-probe.wav",
-      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/test_wavs/0.wav",
       "size": 179646,
-      "sha256": "668bf8df51a10027b84d5d8816a1ce11ae93545538dc05cfe2aa6811d399c250"
+      "sha256": "668bf8df51a10027b84d5d8816a1ce11ae93545538dc05cfe2aa6811d399c250",
+      "url": "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-2025-04-01/resolve/ba19bb0740dedf47a7fc30b462ff1328cff971b4/test_wavs/0.wav",
+      "mirror_url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-2025-04-01/resolve/ba19bb0740dedf47a7fc30b462ff1328cff971b4/test_wavs/0.wav"
     }
   ],
   "runtime": "sherpa-onnx-node@2.0.0",
   "sample_rate": 16000,
-  "license": "Apache-2.0",
-  "license_source": "https://huggingface.co/csukuangfj/icefall-streaming-zipformer-small-ctc-zh-2025-04-01",
-  "probe_expected": "对我做了介绍那么我想说的是呢大家如果对我的研究感兴趣呢"
+  "license": "FunASR Model Open Source License Agreement 1.1",
+  "license_source": "https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE",
+  "source": "https://github.com/FunAudioLLM/SenseVoice",
+  "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+  "probe_expected": "对我做了介绍啊，那么我想说的是呢，大家如果对我的研究感兴趣呢。"
 }

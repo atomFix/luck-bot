@@ -1,0 +1,15 @@
+Local ASR: SenseVoiceSmall (FunAudioLLM / Alibaba Group), Chinese mode, INT8.
+Upstream model: https://huggingface.co/FunAudioLLM/SenseVoiceSmall
+Source: https://github.com/FunAudioLLM/SenseVoice
+ONNX exporter: Fangjun Kuang / k2-fsa sherpa-onnx.
+Converted model: https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
+Pinned revision: 2365baeacb507f821a0c8120fcee3d484dba7a07
+Model license: FunASR Model Open Source License Agreement version 1.1,
+https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE
+Full model license is included in sensevoice-MODEL_LICENSE.
+This is a custom model license, not Apache-2.0. sherpa-onnx runtime retains
+its own separately included license. No user audio is bundled.
+Model downloads may use hf-mirror.com as a transport fallback; model size
+and SHA-256 must match the pinned upstream Git LFS object before use.
+The public asr-probe.wav remains the previous Zipformer upstream probe;
+its provenance and license are documented in zipformer-asr-NOTICE.txt.

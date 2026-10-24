@@ -19,7 +19,7 @@ node scripts/fetch-speaker-model.mjs
 node scripts/fetch-asr-model.mjs
 mkdir -p "$app/Contents/Resources/app/dist/config" "$app/Contents/Resources/app/dist/models"
 cp config/asr-model.json "$app/Contents/Resources/app/dist/config/"
-for file in asr-zipformer-zh.int8.onnx asr-zipformer-zh.tokens.txt asr-zipformer-zh.bbpe.model asr-probe.wav; do cp "models/$file" "$app/Contents/Resources/app/dist/models/"; done
+for file in $(node -e 'console.log(require("./config/asr-model.json").files.map(f=>f.name).join(" "))'); do cp "models/$file" "$app/Contents/Resources/app/dist/models/"; done
 cp config/speaker-model.json "$app/Contents/Resources/app/dist/config/"
 cp models/campplus-zh.onnx "$app/Contents/Resources/app/dist/models/"
 cp -R dist/src "$app/Contents/Resources/app/dist/"
@@ -30,6 +30,8 @@ cp scripts/delete-credentials.mjs "$app/Contents/Resources/"
 cp scripts/verify-bundle.mjs "$app/Contents/Resources/"
 cp -R skill config "$app/Contents/Resources/"
 mkdir -p "$app/Contents/Resources/ThirdParty-Licenses"
+cp "$base/../third_party/sensevoice-MODEL_LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/"
+cp "$base/../third_party/sensevoice-asr-NOTICE.txt" "$app/Contents/Resources/ThirdParty-Licenses/"
 cp "$base/../third_party/zipformer-asr-NOTICE.txt" "$app/Contents/Resources/ThirdParty-Licenses/"
 cp "$base/../third_party/3d-speaker-LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/"
 cp "$base/../third_party/silero-vad-LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/"

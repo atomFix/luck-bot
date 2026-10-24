@@ -1,7 +1,8 @@
 import {z} from 'zod';import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';import {join} from 'node:path';import {homedir} from 'node:os';import {ProfileSchema,DEFAULT_SPEECH} from '../providers/config.js';
 const PairingSchema=z.object({device_id:z.string().regex(/^roundeyes-[a-f0-9]{12}$/),host:z.string().min(1).max(253).regex(/^[a-zA-Z0-9.:-]+$/),port:z.number().int().min(1).max(65535),fingerprint:z.string().regex(/^[a-f0-9]{64}$/),certificate:z.string().min(100).max(4096),controller_id:z.string().regex(/^[a-f0-9]{16}$/)}).strict();
-export const AmbientSchema=z.object({enabled:z.boolean(),wait_seconds:z.number().int().min(5).max(60),silence_ms:z.number().int().min(600).max(2000),threshold:z.number().min(.55).max(.95),margin:z.number().min(.03).max(.3)}).strict();
-export const AMBIENT_DEFAULTS={enabled:false,wait_seconds:20,silence_ms:1000,threshold:.7,margin:.08};
+export const AmbientSchema=z.object({enabled:z.boolean(),speaker_filter:z.boolean().default(false),wait_seconds:z.number().int().min(5).max(60),silence_ms:z.number().int().min(600).max(2000),threshold:z.number().min(.55).max(.95),margin:z.number().min(.03).max(.3)}).strict();
+export const AmbientPatchSchema=AmbientSchema.partial().extend({speaker_filter:z.boolean().optional()});
+export const AMBIENT_DEFAULTS={enabled:false,speaker_filter:false,wait_seconds:20,silence_ms:1000,threshold:.6,margin:.08};
 export const PerformanceSchema=z.object({local_asr:z.boolean(),fast_reactions:z.boolean()}).strict();
 const Schema=z.object({version:z.literal(1),performance:PerformanceSchema.default({local_asr:false,fast_reactions:false}),ambient:AmbientSchema.default(AMBIENT_DEFAULTS),devices:z.array(PairingSchema).max(16),selected:z.string().max(64).nullable(),output:z.enum(['device','mac']),speech:z.object({asr:ProfileSchema,tts:ProfileSchema}).strict(),deepseek_model:z.string().min(1).max(100)}).strict();
 export type Settings=z.infer<typeof Schema>;

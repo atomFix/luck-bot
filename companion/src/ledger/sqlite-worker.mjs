@@ -235,7 +235,7 @@ function execute(op, i) {
     identifier(i.turn_id);
     identifier(i.event);
     const meta = {};
-    for (const key of ["bytes", "code", "turn"])
+    for (const key of ["bytes", "code", "turn", "voiced_ms", "pcm_ms", "required_voiced_ms"])
       if (i[key] != null)
         meta[key] =
           typeof i[key] === "number" ? integer(i[key]) : identifier(i[key]);

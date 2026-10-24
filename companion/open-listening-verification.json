@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-24",
+  "scope": [
+    "Visible Chinese ignore/failure reasons in overview, list and detail",
+    "Shorter ambient VAD and voice-duration gate",
+    "Default-off optional speaker filtering for ambient and wake chat"
+  ],
+  "settings": {
+    "ambient.speaker_filter": false,
+    "legacy_without_field": "defaults false",
+    "new_install_threshold_when_filter_on": 0.6,
+    "existing_threshold": "preserved"
+  },
+  "audio_gates": {
+    "voiced_ms_before": 576,
+    "voiced_ms_after": 192,
+    "consecutive_speech_frames_before": 3,
+    "consecutive_speech_frames_after": 2,
+    "pcm_ms_before": 1000,
+    "pcm_ms_after": 500,
+    "single_frame_noise": "still rejected",
+    "endpoint_silence_current_ms": 600,
+    "rate_limits": "unchanged3second interval/10per minute"
+  },
+  "verification": {
+    "tests_pass": 128,
+    "typecheck": "pass",
+    "signed_bundle_and_model_sqlite_probes": "pass",
+    "physical_user_feedback": "Responds now",
+    "live_confirmed": {
+      "speaker_filter_skipped": true,
+      "speaker_checked_not_run": true,
+      "formerly_short_sample_voiced_ms": 480,
+      "required_voiced_ms": 192,
+      "sample_final_emotion": "winking",
+      "reaction_applied": true
+    },
+    "browser": [
+      "Default off; threshold and margin disabled",
+      "Switch enabled and saved; daemon confirmed true/listening",
+      "Switch disabled and saved; daemon confirmed false/listening",
+      "Historical short/speaker-rejected reasons visible",
+      "Historical detail shows Chinese reason and original code"
+    ],
+    "preservation": {
+      "existing_settings": "identical except explicit new switch",
+      "encrypted_speaker_vault": "exact hash unchanged",
+      "all_old_turn_ids": "preserved"
+    }
+  },
+  "limitations": [
+    "Anyone includes nearby voices; voice recognition and semantics can still be uncertain",
+    "Very short impulses and utterances below192ms can still be rejected",
+    "Response rate limits remain and now have visible reasons",
+    "Existing capture device_timeout issue is not claimed fixed by this work"
+  ]
+}

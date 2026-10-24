@@ -17,4 +17,4 @@ export interface Brain {reaction(text:string,history:Message[],signal:AbortSigna
 export interface Asr {transcribe(wav:Uint8Array,signal:AbortSignal):Promise<string>}
 export interface Tts {synthesize(text:string,signal:AbortSignal):AsyncIterable<Uint8Array>}
 export interface AudioOutput {finish?(turn:Turn):Promise<void>;play(pcm:Uint8Array,turn:Turn):Promise<void>;cancel(turn:number):Promise<void>}
-export type EventMeta = {event:string;turn?:number;duration_ms?:number;bytes?:number;code?:string;model?:string;requests?:number;input_tokens?:number;output_tokens?:number};
+export type EventMeta = {voiced_ms?:number;pcm_ms?:number;required_voiced_ms?:number;event:string;turn?:number;duration_ms?:number;bytes?:number;code?:string;model?:string;requests?:number;input_tokens?:number;output_tokens?:number};

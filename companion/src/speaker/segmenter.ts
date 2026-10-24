@@ -24,6 +24,7 @@ export class AmbientSegmenter {
     const scorer=this.scorer();
     return new SpeechEndpoint({score:async frame=>{const p=await scorer.score(frame);this.quietMs=p<.35?this.quietMs+96:0;return p;}}, {
       continuous: true,
+      speechFrames: 2,
       silenceMs: this.silenceMs,
       maxSpeechMs: this.dropping?Number.MAX_SAFE_INTEGER:29500,
     });

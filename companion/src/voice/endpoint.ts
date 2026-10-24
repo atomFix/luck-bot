@@ -64,6 +64,7 @@ export class SpeechEndpoint {
     private scorer: SpeechScorer = new SileroScorer(),
     private options: {
       continuous?: boolean;
+      speechFrames?: number;
       noSpeechTimeoutMs?: number;
       silenceMs?: number;
       maxSpeechMs?: number;
@@ -94,7 +95,7 @@ export class SpeechEndpoint {
         this.maxProbability = Math.max(this.maxProbability, p);
         if (p >= 0.6) this.positiveFrames++;
         this.positive = p >= 0.6 ? this.positive + 1 : 0;
-        if (this.positive >= 3 && !this.heard) {
+        if (this.positive >= (this.options.speechFrames ?? 3) && !this.heard) {
           this.heard = true;
           this.speechAt = this.samples;
         }

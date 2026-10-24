@@ -1,6 +1,18 @@
 import type {Reaction,Emotion,Message} from '../contracts.js';
+// Only explicit whole-sentence eye requests; no keyword-only matching in stories.
+export function requestedExpression(input:string):Reaction|null {
+ if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
+ const text=input.replace(/[\s，,。.!！、]/gu,'').replace(/^(?:嗯|你好|小智|Luck)+/u,'');
+ if(/^(?:你)?(?:给我)?给点回应(?:吧|呀|呗)?$/.test(text))return {emotion:'winking',hold_ms:2500};
+ if(!/^(?:请|现在|你|给我|表演|表现|表达|展示|显示|做|来)/.test(text)&&!/(?:一下|试试)/.test(text))return null;
+ const match=/^(?:请)?(?:现在)?(?:你)?(?:给我)?(?:(?:表演|表现|表达|展示|显示|做|来)(?:一下|一个)?)?(?:自己的)?(大笑|笑|开心|尴尬|害羞|好奇心|好奇|思考|困惑|惊讶|眨眼|调皮|生气|难过|伤心|哭泣|自信|专注|放松|困倦|瞌睡)(?:的)?(?:眼神|表情)?(?:一下|一个)?(?:试试)?(?:吧|呀|呗)?[?？]?$/.exec(text);
+ if(!match)return null;
+ const map:Record<string,Emotion>={大笑:'laughing',笑:'happy',开心:'happy',尴尬:'embarrassed',害羞:'embarrassed',好奇心:'surprised',好奇:'surprised',思考:'thinking',困惑:'confused',惊讶:'surprised',眨眼:'winking',调皮:'silly',生气:'angry',难过:'sad',伤心:'sad',哭泣:'crying',自信:'confident',专注:'neutral',放松:'relaxed',困倦:'sleepy',瞌睡:'sleepy'};
+ return {emotion:map[match[1]!]!,hold_ms:2500};
+}
 // Whole-phrase social responses from the robot's perspective. Uncertain semantics defer.
 export function localReaction(input:string,history:Message[]=[]):Reaction|null {
+ const requested=requestedExpression(input);if(requested)return requested;
  if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
  const text=input.replace(/[\s，,。.!！、]/gu,'');
  const finish=(choices:Emotion[]):Reaction=>{

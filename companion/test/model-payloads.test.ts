@@ -7,7 +7,7 @@ test('real model attempt details retain sent messages and actual JSON response w
  const brain=new DeepSeekBrain({key:'sk-private-test-only-123456789',fetch:async()=>Response.json(body)});
  const r=await f.journal.run({mode:'text'},()=>brain.reaction('我今天有点累',[{role:'user',content:'你好'},{role:'assistant',content:'你好呀'}],new AbortController().signal));
  const d=await f.db.call('detail',{id:r.id});const p=d.attempts[0].payload;
- assert.equal(p.request.data.messages.at(-1).content,'我今天有点累');assert.equal(p.request.data.messages[0].role,'system');assert.equal(p.request.data.messages[1].content,'你好');assert.equal(p.request.data.thinking.type,'disabled');assert.deepEqual(p.response.data,body);assert(!JSON.stringify(p).includes('sk-private-test-only-123456789'));
+ assert.equal(JSON.parse(p.request.data.messages.at(-1).content).user_utterance,'我今天有点累');assert.equal(p.request.data.messages[0].role,'system');assert.equal(JSON.parse(p.request.data.messages[1].content).recent_interactions[0].content,'你好');assert.equal(p.request.data.thinking.type,'disabled');assert.deepEqual(p.response.data,body);assert(!JSON.stringify(p).includes('sk-private-test-only-123456789'));
  }finally{await f.clean();}
 });
 test('SSE records the actual event objects and marks a cancelled partial stream incomplete',async()=>{
@@ -41,4 +41,18 @@ test('additive v1 migration preserves previous turns and identifies historical p
  const {DatabaseSync}=await import('node:sqlite');const dir=await mkdtemp(join(tmpdir(),'model-v1-'));const path=join(dir,'db');let db=await Ledger.open(path);
  try{await db.call('beginTurn',{id:'old',mode:'text',started_at:1,user_text:'preserved'});await db.call('beginAttempt',{id:'a',logical_id:'a',turn_id:'old',kind:'reaction',provider:'deepseek',model:'m',started_at:2});await db.call('finishAttempt',{id:'a',status:'completed'});await db.close();const raw=new DatabaseSync(path);raw.exec("DROP TABLE model_payloads;DROP TABLE turn_audio;DELETE FROM admin_settings WHERE key='record_audio';DELETE FROM schema_migrations WHERE id>=2;PRAGMA user_version=1");raw.close();db=await Ledger.open(path);const d=await db.call('detail',{id:'old'});assert.equal(d.turn.user_text,'preserved');assert.equal(d.attempts[0].payload,null);assert.equal((await db.call('ready')).version,3);
  }finally{await db.close();await rm(dir,{recursive:true,force:true});}
+});
+
+test('blank reaction retries once and keeps both real usages, errors and responses in the ledger',async()=>{
+ const f=await fixture();let calls=0;const sent:any[]=[];
+ try{const brain=new DeepSeekBrain({key:'fixture',fetch:async(_u,init)=>{sent.push(JSON.parse(init!.body as string));calls++;return Response.json({id:'call-'+calls,model:'deepseek-flash',choices:[{message:{content:calls===1?'    ':'{"emotion":"neutral","hold_ms":2500}'}}],usage:{prompt_tokens:30,completion_tokens:4,total_tokens:34}});}});
+ const r=await f.journal.run({mode:'text'},()=>brain.reaction('一段没有互动含义的内容',[],new AbortController().signal));assert.equal(r.value.emotion,'neutral');assert.equal(calls,2);assert.equal(sent[0].response_format.type,'json_object');assert.equal(sent[1].response_format,undefined);
+ const d=await f.db.call('detail',{id:r.id});assert.equal(d.attempts.length,2);assert.equal(d.attempts[0].error,'provider_reaction_empty');assert.equal(d.attempts[0].status,'failed');assert.equal(d.attempts[0].usage.input_tokens,30);assert.equal(d.attempts[0].payload.response.data.choices[0].message.content,'    ');assert.equal(d.attempts[1].status,'completed');assert.equal((await f.db.call('list',{})).items[0].input_tokens,60);
+ }finally{await f.clean();}
+});
+test('two empty model responses fail visibly instead of manufacturing a neutral reaction',async()=>{
+ const f=await fixture();let calls=0;try{const brain=new DeepSeekBrain({key:'fixture',fetch:async()=>{calls++;return Response.json({choices:[{message:{content:' '}}],usage:{prompt_tokens:10,completion_tokens:1}});}});
+ await assert.rejects(f.journal.run({mode:'text'},()=>brain.reaction('测试',[],new AbortController().signal)),/provider_reaction_empty/);assert.equal(calls,2);
+ const row=(await f.db.call('list',{})).items[0];assert.equal(row.status,'failed');assert.equal(row.error,'provider_reaction_empty');assert.equal(row.emotion,null);
+ }finally{await f.clean();}
 });

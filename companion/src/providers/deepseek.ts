@@ -21,6 +21,7 @@ export class DeepSeekBrain implements Brain {
     history: Message[],
     signal: AbortSignal,
     reaction: boolean,
+    repair = false,
   ) {
     const payload = {
       model: this.options.model ?? "deepseek-flash",
@@ -28,12 +29,14 @@ export class DeepSeekBrain implements Brain {
       stream: !reaction,
       ...(!reaction ? { stream_options: { include_usage: true } } : {}),
       max_tokens: reaction ? 128 : 512,
-      messages: [
-        {role:"system",content:reaction ? REACTION_PROMPT : REPLY_PROMPT},
-        ...history,
-        {role:"user",content:text},
+      messages: reaction ? [
+        {role:"system",content:REACTION_PROMPT+(repair?"\n上次输出未通过校验。这次必须返回一个非空 JSON 对象，例如 {\"emotion\":\"happy\",\"hold_ms\":2500}；不要只返回空白。":"")},
+        // Prior eye labels are context data, not invalid assistant JSON examples.
+        {role:"user",content:JSON.stringify({recent_interactions:history,user_utterance:text})},
+      ] : [
+        {role:"system",content:REPLY_PROMPT},...history,{role:"user",content:text},
       ],
-      ...(reaction ? {response_format:{type:"json_object"}} : {}),
+      ...(reaction&&!repair ? {response_format:{type:"json_object"}} : {}),
     };
     return request(
       this.fetcher,
@@ -61,35 +64,32 @@ export class DeepSeekBrain implements Brain {
     history: Message[],
     signal: AbortSignal,
   ): Promise<Reaction> {
-    const response = await this.call(text, history, signal, true);
-    let body: any;
-    let raw:{text:string;truncated:boolean}|undefined;
-    try {
-      raw = await readModelBody(response);
-      if(raw.truncated)throw new Error("provider_size");
-      body = JSON.parse(raw.text);
-    } catch (e) {
-      await finishResponse(response, "failed", { error: "provider_format", response_data:raw?{format:"text",body:raw.text,truncated:raw.truncated}:{unavailable:"body_unreadable"} });
-      throw e;
+    for(let attempt=0;attempt<2;attempt++) {
+      const response = await this.call(text, history, signal, true, attempt>0);
+      let body:any, raw:{text:string;truncated:boolean}|undefined;
+      try {
+        raw=await readModelBody(response);
+        if(raw.truncated)throw new Error("provider_size");
+        body=JSON.parse(raw.text);
+      } catch(e) {
+        await finishResponse(response,"failed",{error:"provider_format",response_data:raw?{format:"text",body:raw.text,truncated:raw.truncated}:{unavailable:"body_unreadable"}});
+        throw e;
+      }
+      const content=body.choices?.[0]?.message?.content;
+      let reaction:Reaction|undefined;
+      try {if(typeof content==="string"&&content.trim())reaction=parseReaction(JSON.parse(content));} catch {}
+      const error=typeof content!=="string"||!content.trim()?"provider_reaction_empty":"provider_reaction_format";
+      await finishResponse(response,reaction?"completed":"failed",{
+        ...(reaction?{}:{error}),usage:usageFrom(body.usage),actual_model:body.model,request_id:body.id,response_data:body,
+      });
+      this.options.diagnose?.({event:reaction?"brain.reaction":"brain.reaction.invalid",model:this.options.model??"deepseek-flash",input_tokens:body.usage?.prompt_tokens,output_tokens:body.usage?.completion_tokens,...(reaction?{}:{code:error})});
+      if(reaction)return reaction;
+      signal.throwIfAborted();
+      if(attempt===1)throw new Error(error);
     }
-    await finishResponse(response, "completed", {
-      usage: usageFrom(body.usage),
-      actual_model: body.model,
-      request_id: body.id,
-      response_data: body,
-    });
-    this.options.diagnose?.({
-      event: "brain.reaction",
-      model: this.options.model ?? "deepseek-flash",
-      input_tokens: body.usage?.prompt_tokens,
-      output_tokens: body.usage?.completion_tokens,
-    });
-    try {
-      return parseReaction(JSON.parse(body.choices?.[0]?.message?.content));
-    } catch {
-      return { emotion: "neutral", hold_ms: 1200 };
-    }
+    throw new Error("provider_reaction_format");
   }
+
   async *reply(
     text: string,
     history: Message[],

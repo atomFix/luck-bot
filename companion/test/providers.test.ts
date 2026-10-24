@@ -6,7 +6,7 @@ const signal=new AbortController().signal;
 test('DeepSeek sends low latency model and rejects untrusted reaction output',async()=>{
  let calls=0;
  const brain=new DeepSeekBrain({key:'fixture-only',fetch:async(url,init)=>{calls++;assert.equal(url,'https://api.deepseek.com/chat/completions');const body=JSON.parse(init!.body as string);assert.equal(body.model,'deepseek-flash');assert.deepEqual(body.thinking,{type:'disabled'});return Response.json({choices:[{message:{content:'{"emotion":"shell","hold_ms":999999}'}}]});}});
- assert.deepEqual(await brain.reaction('你好',[],signal),{emotion:'neutral',hold_ms:1200});assert.equal(calls,1);
+ await assert.rejects(brain.reaction('你好',[],signal),/provider_reaction_format/);assert.equal(calls,2);
 });
 test('authentication errors do not retry or expose provider response text',async()=>{
  let calls=0;const brain=new DeepSeekBrain({key:'fixture-only',fetch:async()=>{calls++;return new Response('sensitive-provider-response',{status:401});}});

@@ -3,7 +3,7 @@ import {AnimationSchema,SCENES,parseAnimationChoice,animationPosition} from '../
 import {AmbientSegmenter} from '../src/speaker/segmenter.js';
 import {VoicePipeline} from '../src/voice/pipeline.js';
 test('all presets are bounded and custom model sequences reject invalid primitives and excessive duration',()=>{
- for(const name of Object.keys(SCENES)){const p=parseAnimationChoice({preset:name});assert(p.steps.length>2);assert(AnimationSchema.safeParse(p).success);}
+ for(const name of Object.keys(SCENES)){const p=parseAnimationChoice({preset:name});assert(['agree','disagree'].includes(name)?p.steps.length===1:p.steps.length>2);assert(AnimationSchema.safeParse(p).success);}
  for(const bad of [{preset:'run_shell'},{scene:'bad',steps:[{emotion:'scared',duration_ms:500}]},{scene:'bad',steps:[{emotion:'happy',duration_ms:500,shake:Infinity}]},{scene:'bad',steps:Array.from({length:12},()=>({emotion:'happy',duration_ms:5000}))}])assert.throws(()=>parseAnimationChoice(bad));
  const p=parseAnimationChoice({scene:'custom',steps:[{emotion:'shocked',duration_ms:500,shake:.8,scale:.75}]});assert.equal(p.steps[0]!.look_x,0);assert.equal(animationPosition(p,500).step,0);
 });

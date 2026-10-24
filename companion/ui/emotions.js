@@ -42,11 +42,13 @@
     const draw=(elapsed,dt)=>{
       let age=elapsed,index=0;while(index+1<plan.steps.length&&age>=plan.steps[index].duration_ms){age-=plan.steps[index].duration_ms;index++;}
       const step=plan.steps[index],item=byKey.get(step.emotion);if(!item)return;
-      const pose=item.poses[Math.floor(age/(item.cycle_ms||5200))%item.poses.length];
+      const analytic=step.gesture&&step.gesture!=='none';
+      const pose=item.poses[analytic?0:Math.floor(age/(item.cycle_ms||5200))%item.poses.length];
       const shape=window.RoundEyesGeometry.project(pose,step,age,running);
       const amount=1-Math.exp(-dt/Math.max(40,(step.transition_ms||750)/4));if(!points)points=shape.map(p=>p.slice());
       paths.forEach((path,e)=>{
-        if(opinion){
+        if(analytic){points[e]=shape[e].slice();}
+        else if(opinion){
           if(!velocities)velocities=points.map(p=>p.map(()=>0));
           let remaining=Math.min(100,dt)/1000;
           const omega=Math.min(30,Math.max(5,4000/(step.transition_ms||420)));

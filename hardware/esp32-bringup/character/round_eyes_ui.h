@@ -13,6 +13,7 @@ private:
  lv_obj_t *status_,*chat_,*prompt_,*caption_;
  lv_timer_t* timer_;
  uint64_t notice_until_=0;
+ uint32_t timer_period_=30;
  static void Timer(lv_timer_t* timer);
  void Update();
 };

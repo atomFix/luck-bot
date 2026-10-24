@@ -1,16 +1,9 @@
-// Native animation_v1 already supports these poses and timings. Keep the two
-// full gestures canonical so generic emotional pacing cannot stretch each beat.
-const step=(emotion,duration_ms,motion={})=>({emotion,duration_ms,look_x:.04,look_y:-.03,scale:1,shake:0,blink:0,blink_once:false,transition_ms:280,...motion});
-// Two sinusoidal cycles sampled within the existing 12-step wire limit.
-// The second cycle decays gently; the native spring retains velocity between beats.
-const wave=[0,.72,.445,-.445,-.72,0,.58,.36,-.36,-.58,0];
-const gesture=(emotion,axis)=>[
- ...wave.map(value=>step(emotion,280,{[axis]:value+(axis==='look_x'?.04:-.03),transition_ms:420})),
- step(emotion,1000,{transition_ms:650,blink:.7}),
-];
+// A whole head gesture is evaluated continuously by gesture_v1 firmware.
+// No sequence of look targets and no per-beat braking.
+const step=(emotion,gesture)=>({emotion,duration_ms:4200,look_x:0,look_y:0,scale:1,shake:0,blink:0,blink_once:false,transition_ms:700,gesture});
 export const OPINION_GESTURES={
- agree:{label:'点头认可',steps:gesture('happy','look_y')},
- disagree:{label:'摇头不认可',steps:gesture('neutral','look_x')},
+ agree:{label:'点头认可',steps:[step('happy','nod')]},
+ disagree:{label:'摇头不认可',steps:[step('neutral','head_shake')]},
 };
 export function opinionGesture(plan,canonicalOnly=true){
  const key=plan?.scene==='agree'?'agree':plan?.scene==='disagree'?'disagree':null;
@@ -19,6 +12,7 @@ export function opinionGesture(plan,canonicalOnly=true){
  // Read historical or custom gestures without changing stored plans or granting
  // them the canonical fast pacing exception.
  if(!canonicalOnly){
+  if(plan.steps.some(s=>s.gesture===(key==='agree'?'nod':'head_shake')))return key;
   const axis=key==='agree'?'look_y':'look_x',other=key==='agree'?'look_x':'look_y';
   const values=plan.steps.map(s=>s[axis]??0),cross=plan.steps.map(s=>s[other]??0);
   if(Math.max(...values)>.2&&Math.min(...values)<-.2&&Math.max(...cross)-Math.min(...cross)<.15)return key;

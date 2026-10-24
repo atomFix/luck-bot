@@ -42,6 +42,8 @@ private:
     std::optional<uint8_t> forced_;
     Pose current_{}, velocity_{};
     Facing facing_{}, facing_velocity_{};
+    Facing head_offset_{},head_velocity_{},head_carry_{},head_carry_velocity_{};
+    uint64_t head_carry_at_=0;bool head_was_active_=false,head_carry_active_=false;
     float projection_radius_=104,radius_velocity_=0,extent_=77,extent_velocity_=0;
     uint64_t last_ = 0, pose_at_ = 0, blink_at_ = 3500, audio_at_ = 0;
     float energy_ = 0;

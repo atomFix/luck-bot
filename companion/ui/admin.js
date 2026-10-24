@@ -46,7 +46,7 @@
   const date = (v) =>
     v == null ? "—" : new Date(v).toLocaleString("zh-CN", { hour12: false });
   const label = (v) => labels[v] ?? v ?? "—";
-  const reasonLabels={listening_started:"音频流已启动",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
+  const reasonLabels={listening_started:"音频流已启动",gesture_firmware_update_required:"请先更新设备固件，以启用连续点头与摇头",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
   const reasonText=code=>code?(reasonLabels[code]??`其他原因（${code}）`):"—";
 
   const today = () => {
@@ -55,7 +55,7 @@
     return t.getTime();
   };
   const admin = (op, input = {}) => api.call("admin", { op, input });
-  const fail = (e) => api.notify(e.message);
+  const fail = (e) => api.notify(reasonLabels[e.message]??e.message);
   const costText = (costs) =>
     costs.length
       ? costs
@@ -364,7 +364,7 @@
     if(d.animation){
       host.append(node('h3','组合动画时间线'),node('p',`场景：${d.animation.plan.scene} · 来源：${({preset:'场景预设',model:'模型编排',local:'本地编排',replay:'手动重放',continued:'延续当前动画',context:'对话状态回应'})[d.animation.source]??d.animation.source} · 共 ${d.animation.plan.steps.length} 步`));
       const timeline=node('div',null,'table-wrap');
-      table(timeline,['步骤 / 时长','眼型','看向 X / Y','大小','抖动 / 眨眼 / 过渡'],d.animation.plan.steps.map((s,i)=>[`${i+1} · ${s.duration_ms} ms`,window.RoundEyesEmotionUI.badge(s.emotion),`${s.look_x} / ${s.look_y}`,s.scale,`${s.shake} / ${s.blink}${s.blink_once?"（眨一下）":""} / ${s.transition_ms} ms`]));host.append(timeline,window.RoundEyesEmotionUI.animation(d.animation.plan));
+      table(timeline,['步骤 / 时长','眼型','看向 X / Y','大小','抖动 / 眨眼 / 过渡'],d.animation.plan.steps.map((s,i)=>[`${i+1} · ${s.duration_ms} ms`,window.RoundEyesEmotionUI.badge(s.emotion),`${s.look_x} / ${s.look_y}`,s.scale,`${s.shake}${s.gesture&&s.gesture!=='none'?'（'+({nod:'连续点头',head_shake:'连续摇头'})[s.gesture]+'）':''} / ${s.blink}${s.blink_once?"（眨一下）":""} / ${s.transition_ms} ms`]));host.append(timeline,window.RoundEyesEmotionUI.animation(d.animation.plan));
       const replay=node('button','在板子上重放动画');replay.onclick=async()=>{replay.disabled=true;try{await api.call('animation',{plan:d.animation.plan});api.notify('动画已交给板子播放');}catch(e){fail(e);}finally{replay.disabled=false;}};host.append(replay);
     }
     host.scrollIntoView({ behavior: "smooth", block: "start" });

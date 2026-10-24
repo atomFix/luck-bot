@@ -1,94 +1,167 @@
 {
   "date": "2026-10-24",
-  "features": {
-    "single_expressions": 25,
-    "base_poses": 49,
-    "series_presets": 12,
-    "new_gestures": {
-      "agree": "点头认可",
-      "disagree": "摇头不认可"
-    },
-    "gesture_duration_ms": 4080,
-    "gesture_samples": 12,
-    "motion_profile": "Two sinusoidal cycles with a smaller second cycle, continuous native spring velocity and a1000ms soft return",
-    "new_firmware_required": false
+  "root_cause": "Discrete look targets restarted motion phase and braking; the eye playlist could also change mid-gesture.",
+  "implementation": {
+    "duration_ms": 4200,
+    "commands_per_gesture": 1,
+    "trajectory": "Native time-based continuous curve with smooth entrance/exit and decaying amplitude",
+    "eye_pose_locked": true,
+    "idle_micro_motion_disabled_during_gesture": true,
+    "elastic_deformation": true,
+    "interruption_carries_position_and_velocity": true,
+    "head_ui_timer_ms": 10,
+    "ordinary_ui_timer_ms": 30,
+    "capability": "gesture_v1"
+  },
+  "firmware": {
+    "offset": "0x700000",
+    "active_slot": 1,
+    "firmware_bytes": 3599216,
+    "sha256": "88245235794a2a7a8778110f4eca100aaac05c63a1ac101f081efeed789970ce",
+    "flash_verified": true
   },
   "checks": {
-    "typescript_tests_passed": 178,
+    "typescript_tests_passed": 180,
     "typescript_check": true,
+    "native_rendering_suites_passed": 9,
+    "native_preview_curve_tolerance": 1e-05,
+    "all_25_emotions_at_extreme_controls_with_all_gestures_in_bounds": true,
+    "mid_swing_interruption_regression": true,
+    "capability_guard_for_old_firmware": true,
     "signed_companion_installed": true,
     "pairing_and_settings_preserved": true,
-    "fixed_management_port": 4382,
-    "browser_preview_and_gallery_checked": true,
-    "axis_dominance_verified_on_native_exported_geometry": true,
-    "normal_emotional_pacing_preserved": true,
-    "only_canonical_gestures_bypass_slow_pacing": true,
-    "historical_gesture_labels_retained": true,
-    "ledger_reopen_checked": true,
-    "spoken_and_agent_text_routes_covered": true
+    "management_port": 4382
   },
-  "live_device_examples": [
+  "live_semantic_examples": [
     {
       "text": "你觉得对么？",
       "emotion": "thinking",
       "hold_ms": 3600,
-      "duration_ms": 80,
-      "provider_attempts": 0,
-      "source": "context",
       "scene": "opinion_uncertain",
-      "steps": 1
+      "source": "context",
+      "steps": 1,
+      "gesture": "none",
+      "provider_attempts": 0
     },
     {
       "text": "一加一等于二，你觉得对么？",
       "emotion": "happy",
-      "hold_ms": 4080,
-      "duration_ms": 3779,
-      "provider_attempts": 1,
-      "source": "preset",
+      "hold_ms": 4200,
       "scene": "agree",
-      "steps": 12
+      "source": "preset",
+      "steps": 1,
+      "gesture": "nod",
+      "provider_attempts": 1
     },
     {
       "text": "一加一等于三，你觉得对么？",
       "emotion": "neutral",
-      "hold_ms": 4080,
-      "duration_ms": 1505,
-      "provider_attempts": 1,
-      "source": "preset",
+      "hold_ms": 4200,
       "scene": "disagree",
-      "steps": 12
+      "source": "preset",
+      "steps": 1,
+      "gesture": "head_shake",
+      "provider_attempts": 1
     },
     {
       "text": "点点头",
       "emotion": "happy",
-      "hold_ms": 4080,
-      "duration_ms": 87,
-      "provider_attempts": 0,
-      "source": "local",
+      "hold_ms": 4200,
       "scene": "agree",
-      "steps": 12
+      "source": "local",
+      "steps": 1,
+      "gesture": "nod",
+      "provider_attempts": 0
     },
     {
       "text": "摇摇头",
       "emotion": "neutral",
-      "hold_ms": 4080,
-      "duration_ms": 54,
-      "provider_attempts": 0,
-      "source": "local",
+      "hold_ms": 4200,
       "scene": "disagree",
-      "steps": 12
+      "source": "local",
+      "steps": 1,
+      "gesture": "head_shake",
+      "provider_attempts": 0
     }
   ],
-  "final_status": {
-    "connected": true,
-    "error": "",
-    "state": "listening",
-    "streaming": true
+  "live_repeated_demo": {
+    "results": [
+      {
+        "preset": "agree",
+        "result": {
+          "scene": "agree",
+          "steps": 1
+        },
+        "ack_ms": 80
+      },
+      {
+        "preset": "disagree",
+        "result": {
+          "scene": "disagree",
+          "steps": 1
+        },
+        "ack_ms": 82
+      },
+      {
+        "preset": "agree",
+        "result": {
+          "scene": "agree",
+          "steps": 1
+        },
+        "ack_ms": 71
+      },
+      {
+        "preset": "disagree",
+        "result": {
+          "scene": "disagree",
+          "steps": 1
+        },
+        "ack_ms": 74
+      },
+      {
+        "preset": "agree",
+        "result": {
+          "scene": "agree",
+          "steps": 1
+        },
+        "ack_ms": 68
+      },
+      {
+        "preset": "disagree",
+        "result": {
+          "scene": "disagree",
+          "steps": 1
+        },
+        "ack_ms": 70
+      }
+    ],
+    "status": {
+      "connected": true,
+      "error": "",
+      "state": "listening",
+      "streaming": true
+    }
   },
-  "physical_feedback": "User saw both motions and requested a softer version. The installed revision now uses a continuous sampled curve and velocity-preserving preview; follow-up subjective feedback pending.",
+  "renderer": {
+    "capture_seconds": 45,
+    "observed_refresh_fps": [
+      37.6,
+      58.1,
+      57.2,
+      33.1
+    ],
+    "active_gesture_windows_fps": [
+      58.1,
+      57.2
+    ],
+    "minimum_free_heap_bytes": 7698288,
+    "panic_detected": false
+  },
+  "physical_feedback": "User reported stiffness in both prior waypoint versions. Continuous native revision is applied; its subjective acceptance remains pending.",
   "limits": [
-    "Real model evaluation used two elementary factual claims, not a general correctness benchmark. General judgments depend on model quality and available context.",
-    "End-to-end examples supplied text to the real device; fresh microphone/ASR and spoken audio acceptance were not rerun.",
-    "Browser spring preview illustrates the movement; exact display timing follows the native renderer."
+    "Refresh metrics are LVGL refresh events, not optical panel measurements.",
+    "Short smoke run does not replace a long voice or overnight stability test.",
+    "Semantic examples used text input; microphone recognition was not retested in this change.",
+    "General judgments still depend on the model and available context."
   ]
 }

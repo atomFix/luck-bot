@@ -3,7 +3,7 @@ import {requestedExpression,requestedDirection,requestedGesture,missingOpinionRe
 import {OPINION_GESTURES,opinionGesture} from './opinion-gestures.mjs';
 import type {Message} from '../contracts.js';
 import {EMOTIONS,type Emotion,type Reaction} from '../contracts.js';
-const StepSchema=z.object({emotion:z.enum(EMOTIONS),duration_ms:z.number().int().min(200).max(5000),look_x:z.number().min(-1).max(1).default(0),look_y:z.number().min(-1).max(1).default(0),scale:z.number().min(.65).max(1.2).default(1),shake:z.number().min(0).max(1).default(0),blink:z.number().min(0).max(3).default(1),blink_once:z.boolean().default(false),transition_ms:z.number().int().min(120).max(1500).default(300)}).strict();
+const StepSchema=z.object({emotion:z.enum(EMOTIONS),duration_ms:z.number().int().min(200).max(5000),look_x:z.number().min(-1).max(1).default(0),look_y:z.number().min(-1).max(1).default(0),scale:z.number().min(.65).max(1.2).default(1),shake:z.number().min(0).max(1).default(0),blink:z.number().min(0).max(3).default(1),blink_once:z.boolean().default(false),transition_ms:z.number().int().min(120).max(1500).default(300),gesture:z.enum(['none','nod','head_shake']).default('none')}).strict().refine(s=>s.gesture==='none'||s.duration_ms>=2800,{message:'gesture_duration'});
 export const AnimationSchema=z.object({scene:z.string().regex(/^[a-z_]{1,32}$/),steps:z.array(StepSchema).min(1).max(12)}).strict().refine(p=>p.steps.reduce((n,s)=>n+s.duration_ms,0)<=30000,{message:'animation_duration'});
 export type AnimationPlan=z.infer<typeof AnimationSchema>;
 export type AnimationStep=AnimationPlan['steps'][number];

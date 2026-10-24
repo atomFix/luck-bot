@@ -21,9 +21,11 @@ int main(){
  // Every callable emotion at the extreme accepted look/size/shake values.
  for(auto behavior:{Behavior::Idle,Behavior::Listening,Behavior::Waiting,Behavior::Speaking,Behavior::Reconnecting})
  for(unsigned emotion=0;emotion<kEmotions.size();++emotion)
+ for(auto gesture:{HeadGesture::None,HeadGesture::Nod,HeadGesture::HeadShake})
  for(float x:{-1.f,1.f})for(float y:{-1.f,1.f})for(float scale:{.65f,1.2f}){
   EyesModel m(42);MotionCue cue;cue.active=true;cue.key=1;cue.emotion=emotion;
   cue.look_x=x;cue.look_y=y;cue.scale=scale;cue.shake=1;cue.transition_ms=120;
+  cue.gesture=gesture;cue.gesture_duration_ms=4200;
   m.SetBehavior(behavior,0);m.SetMotion(cue);
   for(uint64_t t=0;t<=6500;t+=20){m.ObserveAudio(1,t);InCanvas(m.Tick(t));}
  }

@@ -9,6 +9,8 @@ import {runInNewContext} from 'node:vm';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {Ledger} from '../src/ledger/repository.js';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 
 test('gesture commands are local; truth questions, stories, negations and quotations require understanding',()=>{
  for(const text of ['点点头','你点一下头好吗？','来个点头认可','上下摆动一下'])assert.equal(requestedGesture(text),'agree',text);
@@ -29,9 +31,10 @@ test('bare opinion questions wait for a real referent, while full claims still r
 
 test('a nod moves vertically and a head shake horizontally on the actual projected eye geometry',async()=>{
  const ctx:any={window:{}};for(const name of ['emotion-catalog','eye-geometry'])runInNewContext(await readFile(new URL('../ui/'+name+'.js',import.meta.url),'utf8'),ctx);
- const center=(plan:any)=>plan.steps.slice(1,-1).map((step:any)=>{
+ const center=(plan:any)=>Array.from({length:106},(_,i)=>i*40).map(age=>{
+  const step=plan.steps[0];
   const pose=ctx.window.RoundEyesEmotionCatalog.items.find((x:any)=>x.key===step.emotion).poses[0];
-  const points=ctx.window.RoundEyesGeometry.project(pose,step,0,false).flat();
+  const points=ctx.window.RoundEyesGeometry.project(pose,step,age,true).flat();
   return [0,1].map(axis=>points.filter((_:number,i:number)=>i%2===axis).reduce((a:number,b:number)=>a+b,0)/96);
  });
  const span=(points:number[][],axis:number)=>Math.max(...points.map(p=>p[axis]!))-Math.min(...points.map(p=>p[axis]!));
@@ -41,16 +44,26 @@ test('a nod moves vertically and a head shake horizontally on the actual project
  assert(span(nod,1)>35);assert(span(nod,0)<10);assert(span(nod,1)>6*span(nod,0));
  assert(span(shake,0)>55);assert(span(shake,1)<10);assert(span(shake,0)>6*span(shake,1));
 });
+test('preview continuous trajectory agrees with native curve at every40ms frame',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'head-curve-'));try{
+  const hardware=fileURLToPath(new URL('../../hardware/esp32-bringup/',import.meta.url)),binary=join(dir,'curve');
+  execFileSync('c++',['-std=c++17','-O2','-I'+hardware,join(hardware,'preview/export_head_gestures.cc'),'-o',binary]);
+  const samples=JSON.parse(execFileSync(binary,{encoding:'utf8'}));const ctx:any={window:{}};runInNewContext(await readFile(new URL('../ui/eye-geometry.js',import.meta.url),'utf8'),ctx);
+  for(const [age,value] of samples)assert(Math.abs(ctx.window.RoundEyesGeometry.gestureValue('nod',age,4200)-value)<.00001,`age ${age}`);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
 
-test('canonical rhythm survives automatic pacing while model lookalikes receive normal pacing',()=>{
+test('atomic head gestures preserve duration and reject too-short or unknown primitives',()=>{
  for(const preset of ['agree','disagree']){
-  const plan=parseAnimationChoice({preset});assert.equal(plan.steps.length,12);assert.equal(opinionGesture(plan),preset);
-  assert.deepEqual(paceAnimation(plan),plan);assert.equal(plan.steps.reduce((n,s)=>n+s.duration_ms,0),4080);
+  const plan=parseAnimationChoice({preset});assert.equal(plan.steps.length,1);assert.equal(opinionGesture(plan),preset);
+  assert.deepEqual(paceAnimation(plan),plan);assert.equal(plan.steps.reduce((n,s)=>n+s.duration_ms,0),4200);
   assert(plan.steps.at(-1)!.duration_ms>=1000);
-  const changed=parseAnimationChoice({...plan,steps:plan.steps.map((s,i)=>i===1?{...s,duration_ms:200}:s)});
+  const changed=parseAnimationChoice({...plan,steps:plan.steps.map(s=>({...s,duration_ms:3000,transition_ms:200}))});
   assert.equal(opinionGesture(changed),null);assert.equal(opinionGesture(changed,false),preset);assert(paceAnimation(changed).steps.every(s=>s.duration_ms>=1800));
  }
  assert.equal(requestedAnimation('你觉得对么？'),null);
+ assert.throws(()=>parseAnimationChoice({scene:'bad',steps:[{emotion:'neutral',duration_ms:200,gesture:'nod'}]}));
+ assert.throws(()=>parseAnimationChoice({scene:'bad',steps:[{emotion:'neutral',duration_ms:4200,gesture:'run_shell'}]}));
 });
 
 test('ambient expression uses requested gestures locally and lets the brain judge opinion questions',async()=>{
@@ -59,7 +72,7 @@ test('ambient expression uses requested gestures locally and lets the brain judg
  await p.expression(new Uint8Array(),1,'owner',undefined,{text:'点点头',fast:false});
  await p.expression(new Uint8Array(),2,'owner',undefined,{text:'一加一等于三，你觉得对么？',fast:true});
  assert.deepEqual(modelInputs,['一加一等于三，你觉得对么？']);assert.deepEqual(sent.map(plan=>opinionGesture(plan)),['agree','disagree']);
- assert(sent.every(plan=>plan.steps.reduce((n:number,s:any)=>n+s.duration_ms,0)===4080));
+ assert(sent.every(plan=>plan.steps.reduce((n:number,s:any)=>n+s.duration_ms,0)===4200));
 });
 
 test('spoken chat and agent semantic text can animate opinions while retaining their reply path',async()=>{

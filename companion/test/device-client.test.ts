@@ -37,3 +37,10 @@ test('a complete bounded animation is sent once and playing animation is preserv
  w.emit('message',Buffer.from(JSON.stringify({type:'ack',command_id:command.command_id,applied_uptime_ms:2})),false);await pending;const before=w.sent.length;await c.listenPose(true);await c.processingPose(true);assert.equal(w.sent.length,before);assert(c.animationActive);
  }finally{c.close();}
 });
+test('continuous head gestures require declared firmware support and use a single command',async()=>{
+ const {parseAnimationChoice}=await import('../src/voice/animation.js');const plan=parseAnimationChoice({preset:'agree'});
+ const old=new Wire(),legacy=new DeviceConnection(old as any,{...status,capabilities:['animation_v1']});
+ try{await assert.rejects(legacy.animate(plan,{id:1,signal:new AbortController().signal}),/gesture_firmware_update_required/);assert.equal(old.sent.length,0);}finally{legacy.close();}
+ const wire=new Wire(),device=new DeviceConnection(wire as any,{...status,capabilities:['animation_v1','gesture_v1']});
+ try{const pending=device.animate(plan,{id:1,signal:new AbortController().signal});const command=wire.sent.at(-1);assert.equal(command.payload.steps.length,1);assert.equal(command.payload.steps[0].gesture,'nod');wire.emit('message',Buffer.from(JSON.stringify({type:'ack',command_id:command.command_id,applied_uptime_ms:10})),false);await pending;assert.equal(wire.sent.length,1);}finally{device.close();}
+});

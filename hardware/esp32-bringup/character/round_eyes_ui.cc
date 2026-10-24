@@ -1,5 +1,6 @@
 #include "round_eyes_ui.h"
 #include "animation_signals.h"
+#include "eye_poses.h"
 #include <esp_timer.h>
 #include <cstring>
 #include <algorithm>
@@ -26,6 +27,10 @@ void RoundEyesUi::Chat(const char* role,const char* text){
 void RoundEyesUi::Timer(lv_timer_t* timer){static_cast<RoundEyesUi*>(lv_timer_get_user_data(timer))->Update();}
 void RoundEyesUi::Update(){
  auto now=Now();auto signal=AnimationSignals::Instance().Read(now);bool critical=signal.critical||now<notice_until_;
+ const auto motion=AnimationSignals::Instance().timeline.Read(now);
+ const bool continuous=!critical&&motion.active&&motion.gesture!=HeadGesture::None&&motion.emotion<kEmotions.size()&&GetPoseRadius(kEmotions[motion.emotion].ids[0])<=104;
+ const uint32_t period=continuous?10:30;
+ if(period!=timer_period_){lv_timer_set_period(timer_,period);timer_period_=period;}
  if(critical){lv_obj_add_flag(view_.object(),LV_OBJ_FLAG_HIDDEN);lv_obj_remove_flag(prompt_,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(caption_,LV_OBJ_FLAG_HIDDEN);
   if(now>=notice_until_){const char* status=lv_label_get_text(status_);const char* chat=lv_label_get_text(chat_);char text[768];snprintf(text,sizeof(text),"%s\n%s",status,chat);if(std::strcmp(lv_label_get_text(prompt_),text))lv_label_set_text(prompt_,text);}
  }else{lv_obj_remove_flag(view_.object(),LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(prompt_,LV_OBJ_FLAG_HIDDEN);

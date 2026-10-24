@@ -104,3 +104,5 @@ hardware/esp32-bringup/scripts/build-eyes-firmware.sh
 方向眼型版本（2026-10-24）采用独立胶囊轮廓与球面朝向投影；参考 grok-icon-study 的姿态表达思路，未复制其提取资产或轮廓。当前短测刷新24.5–25.3FPS，最低空闲堆7731944字节，无崩溃。详见 `../../companion/directional-eyes-verification.json`；旧版本记录仍供追溯。
 
 巨型眼型版本（2026-10-24）增加4种可调用眼型与8个基础姿态，画布扩为240×240。大面积画面使用活动边表及差分覆盖填充，保留4倍垂直采样；49个静态眼型与此前算法逐像素一致，帧间无动态内存分配。巨型眼型持续演示约19–20FPS（优化前低至12.4FPS），小眼型约25FPS；短测与用户现场确认见 `../../companion/giant-eyes-verification.json`。
+
+连续头部动作版本（2026-10-24）增加 `gesture_v1`：点头和摇头由一个4200ms动作直接求连续曲线，固定基础眼型并关闭待机微动，中断时保留当前偏移和速度柔和收尾。普通小眼型的连续动作请求10ms UI周期，其他情况保持30ms；实机动作区间约57–58次刷新/秒（LVGL事件，非光学测量），普通待机回到原节奏。配对与NVS保留，仅更新活动应用槽。详见 `../../companion/opinion-gestures-verification.json`。

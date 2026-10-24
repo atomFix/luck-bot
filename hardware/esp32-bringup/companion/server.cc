@@ -66,7 +66,7 @@ bool StartBackground(const std::string& purpose){
 void CancelAudio(){round_eyes::AnimationSignals::Instance().timeline.Clear();StopCapture();Application::GetInstance().GetAudioService().CancelCompanionPlayback();receiver.Reset();layers.Clear();shown.clear();auto sid=session?session->id():"";auto turn=session?session->turn():0;Application::GetInstance().Schedule([sid,turn](){std::lock_guard<std::recursive_mutex> guard(mu);if(enabled&&!critical&&(!session->Active(Now())||(session->id()==sid&&session->turn()==turn))){Application::GetInstance().SetDeviceState(kDeviceStateIdle);shown.clear();}});}
 void Drop(){StopBackground("disconnected");CancelAudio();if(session)session->Release();int fd=socket_fd;socket_fd=-1;if(server&&fd>=0)httpd_sess_trigger_close(server,fd);}
 std::string Info(bool private_info=false){auto o=cJSON_CreateObject();cJSON_AddNumberToObject(o,"v",1);cJSON_AddStringToObject(o,"type",private_info?"status":"info");cJSON_AddStringToObject(o,"device_id",identity.device().c_str());cJSON_AddStringToObject(o,"boot_id",identity.boot().c_str());cJSON_AddNumberToObject(o,"uptime_ms",Now());cJSON_AddStringToObject(o,"mode",enabled?"companion":"xiaozhi");
- auto caps=cJSON_AddArrayToObject(o,"capabilities");cJSON_AddItemToArray(caps,cJSON_CreateString("animation_v1"));if(Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture())cJSON_AddItemToArray(caps,cJSON_CreateString("ambient_v1"));
+ auto caps=cJSON_AddArrayToObject(o,"capabilities");cJSON_AddItemToArray(caps,cJSON_CreateString("animation_v1"));cJSON_AddItemToArray(caps,cJSON_CreateString("gesture_v1"));if(Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture())cJSON_AddItemToArray(caps,cJSON_CreateString("ambient_v1"));
  if(private_info){cJSON_AddBoolToObject(o,"animation_active",round_eyes::AnimationSignals::Instance().timeline.Read(Now()).active);cJSON_AddBoolToObject(o,"background_active",background_active);cJSON_AddBoolToObject(o,"critical",critical);cJSON_AddBoolToObject(o,"capture_active",capture.active());cJSON_AddNumberToObject(o,"capture_samples",capture_samples);cJSON_AddBoolToObject(o,"input_vad",Application::GetInstance().GetAudioService().IsVoiceDetected());cJSON_AddStringToObject(o,"session_id",session->id().c_str());cJSON_AddStringToObject(o,"lease","ours");cJSON_AddNumberToObject(o,"turn_seq",session->turn());}return Json(o);}
 void UpdateLayers(){if(critical||!enabled)return;auto now=Now();if(pose_mode)round_eyes::AnimationSignals::Instance().SetCompanionPose(pose_mode,layers.ManualActive(now));std::string target=layers.Current(now);
  if(target!=shown){shown=target;Application::GetInstance().Schedule([target](){std::lock_guard<std::recursive_mutex> lock(mu);if(!critical&&enabled&&shown==target)Board::GetInstance().GetDisplay()->SetEmotion(target.c_str());});}
@@ -130,6 +130,14 @@ esp_err_t Ws(httpd_req_t* req){
    if(!field("look_x",s.motion.look_x)||!field("look_y",s.motion.look_y)||!field("scale",s.motion.scale)||!field("shake",s.motion.shake)||!field("blink",s.motion.blink)||(cJSON_HasObjectItem(item,"transition_ms")&&!Number(item,"transition_ms",transition))||transition>1500){Error("animation_format",command);return ESP_OK;}
    s.motion.transition_ms=transition;
    auto blink_once=cJSON_GetObjectItemCaseSensitive(item,"blink_once");if(blink_once&&!cJSON_IsBool(blink_once)){Error("animation_format",command);return ESP_OK;}s.motion.blink_once=cJSON_IsTrue(blink_once);
+   auto gesture=cJSON_GetObjectItemCaseSensitive(item,"gesture");
+   if(gesture){
+    if(!cJSON_IsString(gesture)){Error("animation_format",command);return ESP_OK;}
+    const std::string name=gesture->valuestring;
+    if(name=="nod")s.motion.gesture=round_eyes::HeadGesture::Nod;
+    else if(name=="head_shake")s.motion.gesture=round_eyes::HeadGesture::HeadShake;
+    else if(name!="none"){Error("animation_format",command);return ESP_OK;}
+   }
   }
   if(!round_eyes::ValidAnimation(animation)){Error("animation_format",command);return ESP_OK;}
  }

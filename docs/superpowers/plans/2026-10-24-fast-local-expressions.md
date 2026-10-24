@@ -21,23 +21,23 @@
 4. Model licensing/hash/actual bundled Chinese decode work after signed upgrade, keys/vault/DB unchanged.
 5. Next speech during finalization, voice/manual priority and transport gaps cancel/reset correct stream while listening remains animated.
 
-### Task1: Conservative local reaction and latency settings
+### Task 1: Conservative local reaction and latency settings
 **Files:** voice/fast-reaction.ts,pipeline.ts,local/settings.ts,test/fast-reaction.test.ts,pipeline.test.ts,settings.test.ts.
 **Interfaces:** localReaction(text):Reaction|null; pipeline expression accepts final local transcript and local_reactions flag, records local route spans; settings.performance local_asr/fast_reactions defaults false for compatibility.
 - [ ] RED clear first-person phrases match; negation/irony/questions/mixed/third-person/quotes defer; prior history remains available to cloud fallback. Pipeline no brain/ASR on local transcript+fast path, complex text still brain, ambient no reply/TTS.
 - [ ] Implement+run targeted tests and full suite/tsc, commit.
 
-### Task2: Bounded local streaming ASR runtime
+### Task 2: Bounded local streaming ASR runtime
 **Files:** voice/local-asr.ts,local-asr-worker.mjs,config/asr-model.json,scripts/fetch-asr-model.mjs,test/local-asr.test.ts,third_party.
 **Interfaces:** LocalAsr.ready/start/push/finish/cancel/close/status, result text/model/cpu_ms/finalize_ms; Asr whole-wav adapter for chat. Worker streams<=2, frame byte cap, timeouts, model hashes. Official WAV chunk test recognizes expected Chinese and measures tail latency; cancellation/gap/queue worker failure tests.
 - [ ] RED fake worker cap/cancel/stale result/model failure tests, fetch and hash official model/license, implement native online CPU worker and actual known Chinese waveform probe. Run suite+tsc, commit.
 
-### Task3: Ambient integration and management UI
+### Task 3: Ambient integration and management UI
 **Files:** speaker/segmenter.ts,controller.ts,app.ts,main.ts,ui/admin.js/index.html,controller/app tests.
 **Interfaces:** start event includes pre-roll, frame callback feeds local ASR before final gate; Candidate holds ASR handle/result, profile match gates consumption. pause/gap/ignored/queue supersession cancels corresponding handle. Local status in safe app.state, UI performance settings in authenticated local routes, never expose transcript via MCP/status.
 - [ ] RED unknown=>zero cloud/no text; matched uses final local result; cancel/next speech/enrollment/manual cleans correct streams. Update configuration UI with local/cloud selection and600ms preset. Run whole suite+native unchanged smoke, commit.
 
-### Task4: Signed package, review, install and physical latency acceptance
+### Task 4: Signed package, review, install and physical latency acceptance
 **Files:** packaging/model probes,fast-expression-verification.json,README/progress.
 - [ ] Model files+licenses included in dist/config/models; bundled recognizer actual Chinese chunk probe and SQLite reopen pass. Run full suite and fresh whole-branch reviewer once; fix Important/Critical with RED→GREEN.
 - [ ] Snapshot settings/vault/SQLite privately, preserve stable credential helper hash, signed host-only install. Explicitly enable approved local fast mode with600ms pause; no new voice enrollment.

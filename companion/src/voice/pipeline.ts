@@ -1,3 +1,4 @@
+import {localReaction} from './fast-reaction.js';
 import { currentJournal } from "../ledger/journal.js";
 import { performance } from "node:perf_hooks";
 import type {
@@ -44,12 +45,12 @@ export class VoicePipeline {
   clearSpeaker(id: string) {
     this.speakerHistory.delete(id);
   }
-  async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>) {
+  async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>, local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}) {
     const turn = await this.begin(id);
     const t = performance.now();
-    const text = await this.options.asr.transcribe(wav16k(pcm), turn.signal);
+    const text = local?.text!==undefined ? local.text : await this.options.asr.transcribe(wav16k(pcm), turn.signal);
     this.check(turn);
-    this.event("asr.done", turn, t);
+    if(local?.text!==undefined){const meta={event:"asr.local.done",turn:turn.id,duration_ms:local.asr_ms??Math.round(performance.now()-t),model:local.model};if(this.options.diagnose)this.options.diagnose(meta);else currentJournal()?.event(meta);}else this.event("asr.done", turn, t);
     currentJournal()?.patch({ user_text: text || null, device_turn: turn.id });
     if (!text.trim()) return;
     let history = this.speakerHistory.get(speaker);
@@ -60,14 +61,15 @@ export class VoicePipeline {
       this.speakerHistory.set(speaker, history);
     }
     const start = performance.now();
-    const predicted = await this.options.brain.reaction(
+    const quick=local?.fast?localReaction(text):null;
+    const predicted = quick ?? await this.options.brain.reaction(
       text,
       history.snapshot(),
       turn.signal,
     );
     const reaction={...predicted,hold_ms:Math.max(2500,predicted.hold_ms)};
     this.check(turn);
-    this.event("reaction.ready", turn, start);
+    this.event(quick?"reaction.local":"reaction.ready", turn, start);
     currentJournal()?.patch({
       emotion: reaction.emotion,
       hold_ms: reaction.hold_ms,

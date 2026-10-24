@@ -1,11 +1,11 @@
 {
   "date": "2026-10-24",
-  "overall": "implemented-awaiting-physical-pairing-and-voice-acceptance",
+  "overall": "physical-voice-smoke-passed-long-soak-and-board-speaker-pending",
   "checks": {
     "host_tests": {
       "status": "passed",
-      "count": 41,
-      "note": "Full suite passed after final Keychain has fix; tsc passed"
+      "count": 49,
+      "note": "Full suite after final PCM fix; tsc/package build passed, includes actual local Silero silence inference, capture cancellation, native PCM drain and temp install/upgrade checks."
     },
     "native_keychain": {
       "status": "passed",
@@ -31,26 +31,34 @@
       "offset": "0x700000"
     },
     "discovery": {
-      "status": "partial",
+      "status": "passed",
       "device_id": "roundeyes-2884855ca144",
       "host": "192.168.31.225",
       "port": 8443,
-      "note": "First image mDNS succeeded; final installed app discovery returned empty twice. TCP reachable. Manual IP prepared; mDNS reliability unresolved."
+      "note": "Installed app discovery returned the device after user allowed local network. Earlier empty results preceded permission."
     },
     "render_smoke": {
       "status": "passed",
-      "fps": 26,
-      "note": "Final image passive idle logs 26.0–26.3 FPS; no panic observed in bounded capture"
+      "fps": 24.7,
+      "note": "Bounded AFE-listening passive capture 24.7–24.9 FPS. No claim of long soak or optical panel measurement."
     },
     "physical_pairing": {
-      "status": "pending",
-      "note": "Waiting for user BOOT confirmation; timed windows expired"
+      "status": "passed",
+      "note": "Fresh USB request reached pairing.pending; user short BOOT confirmed; installed app stored one controller in Keychain/settings."
     },
     "device_security_matrix": {
-      "status": "pending"
+      "status": "partial",
+      "note": "Pinned TLS and stored controller token authenticated from isolated probe; certificate replacement fixture passed. Full hardware replay/revocation/lease matrix not yet exercised."
     },
     "physical_microphone_pipeline": {
-      "status": "pending"
+      "status": "passed",
+      "completed_rounds": 1,
+      "asr_ms": 1354,
+      "semantic_ms": 808,
+      "reaction_ack_ms": 121,
+      "reply_first_token_ms": 274,
+      "reply_characters": 27,
+      "note": "User confirmed eye response and audible Mac reply. Latest real captured PCM138240 bytes (4.32s), local Silero endpoint stopped board before ASR. Reply completed with no error. Not a long soak or board speaker test."
     },
     "ten_turn_soak": {
       "status": "pending"
@@ -61,16 +69,16 @@
     },
     "package": {
       "status": "passed",
-      "note": "Final package rebuilt; ad-hoc codesign and file manifest passed; previous temp install/upgrade/rollback/uninstall passed",
-      "sha256": "4817ea4ec81f49173287dd3fc8bb7ff653d7cfac9848348d1af16212e42397fa"
+      "sha256": "e870ca9204739cd29b56b343d854677a851c33f7eaf37a84f9cf518b76942c1f",
+      "note": "Final signed app rebuilt and installed with local model/runtime, corrected native audio and Silero license. Trimmed to darwin/arm64 runtime, code signatures/manifest verified. Installed offline inference passed. Apple Development local signature; not notarized."
     },
     "actual_install": {
       "status": "passed",
       "note": "Updated ~/Applications app preserving .previous; native launcher opened authenticated UI; three configured statuses visible; bundled CLI status succeeded. Actual logout/login not tested."
     },
     "final_review": {
-      "status": "passed-with-documented-limits",
-      "note": "One independent final review completed; all 3 Important findings reproduced/fixed with tests. No second review. Hardware/security/voice/soak acceptance remains pending."
+      "status": "partial",
+      "note": "Earlier whole-change independent review: all3 Important findings reproduced/fixed. Latest local-VAD/native-audio changes have scoped self-review,49 host tests,C++ tests and one physical end-to-end acceptance; no new independent review claimed."
     },
     "public_distribution": {
       "status": "pending",
@@ -78,21 +86,51 @@
     },
     "final_flash": {
       "status": "passed",
-      "sha256": "f48cdd82733f916803b610a822f9821c77fd6bd69f04069313e13cdfd7fa428f",
-      "bytes": 3585456,
+      "sha256": "8cdd41040cddf60b31f9f3d5bcd1582e8582e4bbd0f73f9dbfd00ce428cec0f7",
+      "bytes": 3586096,
       "slot": "ota_1",
       "offset": "0x700000",
-      "note": "Live OTA re-read confirmed selection; esptool hash verified; application slot only"
+      "note": "Host endpoint mode +30s board safety cap. Live OTA re-read and esptool hash verified; preserves NVS/model/partition/bootloader."
     },
     "secret_scan": {
       "status": "passed",
-      "providers_checked": 3,
-      "files_scanned": 232,
-      "leaks": 0
+      "credential_values_checked": 4,
+      "staged_files": 29,
+      "leaks": 0,
+      "note": "Three provider values plus saved device controller token read privately from installed Keychain helper and checked against exact staged Git contents; no values printed."
     },
     "streaming_reply": {
       "status": "passed",
       "artifact": "reply-verification.json"
+    },
+    "app_device_connection": {
+      "status": "passed",
+      "note": "User manually reopened installed app, allowed local network, then app connect/activate succeeded and heartbeat kept connection. Apple Development signed app with purpose+Bonjour declarations."
+    },
+    "text_semantics_device": {
+      "status": "passed",
+      "reaction_model_ms": 563,
+      "reaction_ack_ms": 37,
+      "total_reply_ms": 1385,
+      "note": "One known non-sensitive text sentence; device applied acknowledgement preceded reply first token. User confirmed eyes react; no board speaker installed."
+    },
+    "shutdown_checkpoint": {
+      "status": "passed",
+      "note": "Overnight pause resumed by user; current app left connected and idle, output=mac. No automatic test/billing schedule created."
+    },
+    "local_vad": {
+      "status": "passed",
+      "model": "Silero legacy 16kHz via @ricky0123/vad-node 0.0.3",
+      "runtime": "onnxruntime-node 1.22.0 CPU",
+      "note": "Bundled offline; real digital silence rejected, locally generated synthetic speech detected/ended in48ms for4.09s speech plus silence; fixed-length actual microphone ASR baseline returned valid text in914ms. Device AFE VAD alone remained unreliable, now not authoritative."
+    },
+    "mac_audio": {
+      "status": "passed",
+      "note": "Reproduced Swift Data index crash with silent PCM. Fixed startIndex handling and bounded8-buffer scheduling; native2s PCM drains in2.62s on this Mac; user confirmed final TTS audible."
+    },
+    "dependency_audit": {
+      "status": "passed",
+      "production_vulnerabilities": 0
     }
   }
 }

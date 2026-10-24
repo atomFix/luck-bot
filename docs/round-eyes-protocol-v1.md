@@ -35,3 +35,8 @@ ack为 `{type:"ack",command_id,applied_uptime_ms}`。ack由应用/UI边界在应
 新安装默认Companion，断网或TLS失败保留此模式，不自动把录音交给小智云。兼容小智模式显式切换并保留原绑定。Companion启动不依赖小智云版本检查；云端版本提示不会自动覆盖定制应用。更新使用已核验应用槽的固件流程。
 
 局域网之外没有公网入口；未来中继替换传输适配器，仍需同样身份、权限、过期与控制权语义。
+
+
+## 2026-10-24: host utterance endpoint
+
+Companion capture runs until the host decides that speech has ended (or the existing30-second device safety cap). The Mac evaluates contiguous16kHz PCM with bundled offline Silero VAD, requires sustained speech followed by about768ms silence, and cancels10-second captures with no detected speech without ASR billing. After a local endpoint, the host closes its validated contiguous buffer, sends authenticated `cancel` for that turn and waits for the acknowledgement before ASR. This is an explicit local end operation; transport gaps, stale turns and overflow still reject the utterance. Legacy device end markers remain supported. Audio content and transcripts are not diagnostic fields. No new unauthenticated control command or port was added.

@@ -238,41 +238,52 @@
      DeviceState GetDeviceState() const { return device_state_; }
 --- a/main/audio/audio_service.cc
 +++ b/main/audio/audio_service.cc
-@@ -1,4 +1,5 @@
+@@ -1,4 +1,6 @@
  #include "audio_service.h"
 +#include "server.h"
++#include "pcm_conditioner.h"
  #if CONFIG_ROUND_EYES_CHARACTER
  #include "animation_signals.h"
  #include <esp_timer.h>
-@@ -213,7 +214,7 @@
+@@ -65,6 +67,16 @@
+ #endif
+ 
+     audio_processor_->OnOutput([this](std::vector<int16_t>&& data) {
++        if (companion::Enabled()) {
++            // Use the same AFE processed PCM and speech decision as normal voice
++            // input. Raw digital-microphone DC bias is not evidence of speech.
++            if (companion_capture_.load()) {
++                for (size_t offset=0; offset+320<=data.size() && companion_capture_.load(); offset+=320) {
++                    companion::OnPcm(data.data()+offset,320,voice_detected_);
++                }
++            }
++            return;
++        }
+         PushTaskToEncodeQueue(kAudioTaskTypeEncodeToSendQueue, std::move(data));
+     });
+ 
+@@ -211,6 +223,7 @@
+ }
+ 
  void AudioService::AudioInputTask() {
++    std::array<companion::DcBlocker,2> dc_blockers;
      while (true) {
          EventBits_t bits = xEventGroupWaitBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING |
--            AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING,
-+            AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING | AS_EVENT_COMPANION_CAPTURE,
-             pdFALSE, pdFALSE, portMAX_DELAY);
- 
-         if (service_stopped_) {
-@@ -222,6 +223,18 @@
-         if (audio_input_need_warmup_) {
-             audio_input_need_warmup_ = false;
-             vTaskDelay(pdMS_TO_TICKS(120));
-+            continue;
-+        }
-+
-+        if (bits & AS_EVENT_COMPANION_CAPTURE) {
-+            std::vector<int16_t> pcm;
-+            if (ReadAudioData(pcm, 16000, 320)) {
-+                if (codec_->input_channels() == 2) {
-+                    for (size_t i=0; i<320; ++i) pcm[i]=pcm[i*2];
-+                    pcm.resize(320);
-+                }
-+                companion::OnPcm(pcm.data(), pcm.size());
-+            }
-             continue;
-         }
- 
-@@ -292,6 +305,11 @@
+             AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING,
+@@ -266,6 +279,12 @@
+             int samples = audio_processor_->GetFeedSize();
+             if (samples > 0) {
+                 if (ReadAudioData(data, 16000, samples)) {
++                    if (companion_capture_.load()) {
++                        const size_t channels=codec_->input_channels();
++                        if(channels>=1 && channels<=dc_blockers.size()) {
++                            for(size_t i=0;i<data.size();++i)data[i]=dc_blockers[i%channels].Process(data[i]);
++                        }
++                    }
+                     audio_processor_->Feed(std::move(data));
+                     continue;
+                 }
+@@ -292,6 +311,11 @@
          audio_queue_cv_.notify_all();
          lock.unlock();
  
@@ -284,7 +295,7 @@
          if (!codec_->output_enabled()) {
              esp_timer_stop(audio_power_timer_);
              esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
-@@ -301,6 +319,7 @@
+@@ -301,6 +325,7 @@
          round_eyes::AnimationSignals::Instance().PublishPlayback(task->pcm.data(), task->pcm.size(), esp_timer_get_time()/1000);
  #endif
          codec_->OutputData(task->pcm);
@@ -292,14 +303,21 @@
  
          /* Update the last output time */
          last_output_time_ = std::chrono::steady_clock::now();
-@@ -674,3 +693,24 @@
+@@ -674,3 +699,31 @@
          esp_timer_stop(audio_power_timer_);
      }
  }
 +
 +void AudioService::EnableCompanionCapture(bool enable) {
-+    if (enable) {EnableVoiceProcessing(false); EnableWakeWordDetection(false); xEventGroupSetBits(event_group_, AS_EVENT_COMPANION_CAPTURE);}
-+    else {xEventGroupClearBits(event_group_, AS_EVENT_COMPANION_CAPTURE); EnableWakeWordDetection(true);}
++    companion_capture_.store(enable);
++    if (enable) {
++        voice_detected_=false;
++        EnableWakeWordDetection(false);
++        EnableVoiceProcessing(true);
++    } else {
++        EnableVoiceProcessing(false);
++        EnableWakeWordDetection(true);
++    }
 +}
 +bool AudioService::PushCompanionPcm(const uint8_t* data, size_t bytes, uint32_t turn, bool end) {
 +    if (!turn || bytes > 960 || bytes % 2) return false;
@@ -327,15 +345,7 @@
  #include <deque>
  #include <condition_variable>
  #include <chrono>
-@@ -49,6 +50,7 @@
- #define AS_EVENT_AUDIO_TESTING_RUNNING      (1 << 0)
- #define AS_EVENT_WAKE_WORD_RUNNING          (1 << 1)
- #define AS_EVENT_AUDIO_PROCESSOR_RUNNING    (1 << 2)
-+#define AS_EVENT_COMPANION_CAPTURE          (1 << 4)
- #define AS_EVENT_PLAYBACK_NOT_EMPTY         (1 << 3)
- 
- struct AudioServiceCallbacks {
-@@ -69,6 +71,9 @@
+@@ -69,6 +70,9 @@
      AudioTaskType type;
      std::vector<int16_t> pcm;
      uint32_t timestamp;
@@ -345,7 +355,7 @@
  };
  
  struct DebugStatistics {
-@@ -106,8 +111,12 @@
+@@ -106,8 +110,13 @@
      void PlaySound(const std::string_view& sound);
      bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
      void ResetDecoder();
@@ -355,6 +365,7 @@
  
  private:
 +    std::atomic<uint32_t> companion_generation_{0};
++    std::atomic<bool> companion_capture_{false};
      AudioCodec* codec_ = nullptr;
      AudioServiceCallbacks callbacks_;
      std::unique_ptr<AudioProcessor> audio_processor_;

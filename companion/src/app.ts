@@ -1,7 +1,9 @@
+import {SpeechEndpoint} from './voice/endpoint.js';
+type VoiceCapture={turn:number;buffer:UtteranceBuffer;endpoint:{push(pcm:Uint8Array):Promise<boolean>};work:Promise<void>;pending:number};
 import {ReconnectLoop} from './device/reconnect.js';import type {PairingRecord} from './device/pinned-transport.js';import {setLoginStart,loginStartEnabled} from './local/login.js';import type {Secrets,EventMeta} from './contracts.js';import {SettingsStore,type Settings} from './local/settings.js';import {connect,DeviceConnection} from './device/client.js';import {discover} from './device/discovery.js';import {pairUsb} from './device/usb-pair.js';import {DeepSeekBrain} from './providers/deepseek.js';import {SpeechRegistry} from './providers/registry.js';import {minimaxAdapter} from './providers/minimax.js';import {VoicePipeline} from './voice/pipeline.js';import {DeviceOutput} from './voice/output.js';import {MacOutput} from './voice/mac-output.js';import {UtteranceBuffer} from './voice/utterance.js';import {parseReaction} from './protocol/schema.js';import {logEvent} from './diagnostics.js';
 export class Companion {
- private config!:Settings;private connection?:DeviceConnection;private pipeline?:VoicePipeline;private pipelinePromise?:Promise<VoicePipeline>;private epoch=0;private registry=new SpeechRegistry();private events:EventMeta[]=[];private pairing='idle';private lastReply='';private lastError='';private voice?:{turn:number;buffer:UtteranceBuffer};private busy=false;private activeVoice=0;private manualUntil=0;private desired?:string;private retry?:ReconnectLoop<DeviceConnection>;private attempt?:AbortController;private connectionGeneration=0;
- constructor(private settings:SettingsStore,private secrets:Secrets,private connector:typeof connect=connect){this.registry.registerSpeechAdapter('minimax',minimaxAdapter);}
+ private config!:Settings;private connection?:DeviceConnection;private pipeline?:VoicePipeline;private pipelinePromise?:Promise<VoicePipeline>;private epoch=0;private registry=new SpeechRegistry();private events:EventMeta[]=[];private pairing='idle';private lastReply='';private lastError='';private voice?:VoiceCapture;private busy=false;private activeVoice=0;private manualUntil=0;private desired?:string;private retry?:ReconnectLoop<DeviceConnection>;private attempt?:AbortController;private connectionGeneration=0;
+ constructor(private settings:SettingsStore,private secrets:Secrets,private connector:typeof connect=connect,private endpointFactory:()=>{push(pcm:Uint8Array):Promise<boolean>}=()=>new SpeechEndpoint()){this.registry.registerSpeechAdapter('minimax',minimaxAdapter);}
  async initialize(){this.config=await this.settings.read();}
  private diagnose=(meta:EventMeta)=>{logEvent(line=>{this.events.push(JSON.parse(line));if(this.events.length>60)this.events.shift();},meta);};
  private problem=(error:unknown)=>{this.lastError=error instanceof Error&&/^[a-zA-Z0-9_.-]{1,80}$/.test(error.message)?error.message:'operation_failed';this.diagnose({event:'operation.error',code:this.lastError});};
@@ -21,12 +23,26 @@ export class Companion {
  private agentBusy(){return !!this.voice||this.activeVoice>0||!!this.pipelinePromise||performance.now()<this.manualUntil;}
  private attachDevice(c:DeviceConnection,record:PairingRecord){this.connection=c;
     c.on('disconnected',()=>{if(this.connection===c){this.connection=undefined;void this.resetServices();this.manualUntil=0;if(this.desired===record.device_id)this.scheduleReconnect(record);}});
-    c.on('event',msg=>{if(msg.type==='utterance.start'){void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer()};}
-     if(msg.type==='utterance.end'&&this.voice&&this.voice.turn===msg.turn_seq){const voice=this.voice;this.voice=undefined;const epoch=this.epoch;this.activeVoice++;void (async()=>{const pcm=voice.buffer.finish();const p=await this.makePipeline();if(epoch!==this.epoch)throw new Error('cancelled');await p.audio(pcm,voice.turn);})().catch(this.problem).finally(()=>this.activeVoice--);}
+    c.on('event',msg=>{if(msg.type==='utterance.start'){void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer(),endpoint:this.endpointFactory(),work:Promise.resolve(),pending:0};}
+     if(msg.type==='utterance.end'&&this.voice&&this.voice.turn===msg.turn_seq){const voice=this.voice;voice.work=voice.work.then(()=>this.finishVoice(voice,c,false)).catch(error=>this.captureProblem(voice,error));}
      if(msg.type==='error'&&!msg.command_id){void this.cancelWork(true);this.problem(new Error(msg.code));}
      if(msg.type==='playback.started')this.diagnose({event:'playback.started',turn:msg.turn_seq});
     });
-    c.on('audio',frame=>{try{if(this.voice&&frame.turn_seq===this.voice.turn)this.voice.buffer.push(frame);}catch(error){void this.cancelWork(true);this.problem(error);}});
+    c.on('audio',frame=>{const voice=this.voice;if(!voice||frame.turn_seq!==voice.turn)return;
+     try{voice.buffer.push(frame);if(++voice.pending>50)throw new Error('overflow');
+      voice.work=voice.work.then(async()=>{if(this.voice!==voice||this.connection!==c)return;
+       const ended=await voice.endpoint.push(frame.pcm);if(ended&&this.voice===voice)await this.finishVoice(voice,c,true);
+      }).catch(error=>this.captureProblem(voice,error)).finally(()=>{voice.pending--;});
+     }catch(error){this.captureProblem(voice,error);}
+    });
+ }
+ private captureProblem(voice:VoiceCapture,error:unknown){if(this.voice!==voice)return;void this.cancelWork(true);this.problem(error);}
+ private async finishVoice(voice:VoiceCapture,c:DeviceConnection,local:boolean){
+  if(this.voice!==voice||this.connection!==c)return;this.voice=undefined;const epoch=this.epoch;this.activeVoice++;
+  try{const pcm=local?voice.buffer.finishAtEndpoint():voice.buffer.finish();await c.cancel(voice.turn);
+   if(epoch!==this.epoch||this.connection!==c)return;this.diagnose({event:'utterance.ended',turn:voice.turn,bytes:pcm.length});
+   const p=await this.makePipeline();if(epoch!==this.epoch||this.connection!==c)return;await p.audio(pcm,voice.turn);
+  }catch(error){if(epoch===this.epoch)this.problem(error);}finally{this.activeVoice--;}
  }
  private scheduleReconnect(record:PairingRecord){this.retry?.stop();const generation=this.connectionGeneration;
   const retry=new ReconnectLoop(async signal=>{let host=record.host;try{const found=await discover(signal,1000);host=found.find(d=>d.device_id===record.device_id)?.host??host;}catch{signal.throwIfAborted();}

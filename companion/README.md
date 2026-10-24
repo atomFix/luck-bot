@@ -4,7 +4,7 @@ macOS arm64 本机程序，配合 ESP32-S3 N16R8 + GC9A01 圆眼固件。板端�
 
 ## 安装与启动
 
-本地安装包位于工作区 `output/round-eyes-companion/`，包含 `Round Eyes Companion.app` 和 zip。当前包为本机 ad-hoc 签名，未做 Developer ID 公证。支持当前arm64 Mac；未进行其他机器或旧macOS真机验收。
+本地安装包位于工作区 `output/round-eyes-companion/`，包含 `Round Eyes Companion.app` 和 zip。默认构建使用本机 ad-hoc 签名；可通过 `ROUND_EYES_SIGN_IDENTITY` 指定 Apple 签发的代码签名身份，当前安装版使用 Apple Development 本地签名，未做 Developer ID 公证。支持当前arm64 Mac；未进行其他机器或旧macOS真机验收。
 
 在解压目录执行 `bash install.sh` 安装到 `~/Applications/Round Eyes Companion.app`，然后打开应用。菜单栏 **◉** 可再次打开设置或退出。运行时随包提供，无需另装Node/Python/Rust。程序只监听127.0.0.1；CLI/MCP走当前用户0600权限Unix socket，不开放局域网管理页面。
 
@@ -12,7 +12,7 @@ macOS arm64 本机程序，配合 ESP32-S3 N16R8 + GC9A01 圆眼固件。板端�
 2. 选择已配对设备，“连接并启用Companion”。mDNS可自动发现，USB响应也会带回设备IP。
 3. 配置Keychain凭据；已保存的Key不回显。输入新Key点保存，删除使用明确的删除按钮。
 4. 识别/合成可分别选择供应商、模型、地址与音色。DashScope显示“接口预留”，不能把未实现的适配器当作已可调用服务。
-5. 先输入文字验证眼神，功放未安装时明确选择Mac扬声器再试语音。按BOOT或使用唤醒词开始一轮；一句话结束后才做语义反应。
+5. 先输入文字验证眼神，功放未安装时明确选择Mac扬声器再试语音。按BOOT或使用唤醒词开始一轮；一句话结束后才做语义反应。断句使用随包的离线 Silero VAD（CPU推理），ESP32负责采集/传输并保留30秒上限；约0.8秒持续停顿后提交识别，10秒未检出语音会取消。无需在首次启动时下载模型。
 
 原始录音、完整历史默认只在内存；关闭进程即清空。诊断不保存文本、音频或Key。模型处理在所选服务商云端运行，不是ESP32本地大模型。一次语音轮次最多两个DeepSeek逻辑请求，各自最多一次瞬时失败重试；余额/鉴权失败不重试。
 
@@ -24,9 +24,9 @@ MCP配置见随包 `Contents/Resources/config/mcp.example.json`，将两个安�
 
 ## 开发与验证
 
-在源码 `companion/` 执行 `npm ci`、`npm run native`、`npm test`、`npm run check`；`npm start`启动开发服务。`bash scripts/package-macos.sh`生成本机包。Keychain helper只通过长度前缀stdin/stdout传值，API Key不进入命令参数或环境变量。
+在源码 `companion/` 执行 `npm ci`、`npm run native`、`npm test`、`npm run check`；`npm start`启动开发服务。`bash scripts/package-macos.sh`生成本机包。若已有 Apple Development 身份，可用 `ROUND_EYES_SIGN_IDENTITY="签名身份名称或证书指纹" bash scripts/package-macos.sh`；不需要导出私钥。原生钥匙串助手保留稳定本机签名，避免无关升级改变现有条目的访问授权。macOS 15+ 需要用户允许本地网络访问；设备授权成功并不等于系统已允许局域网通信。Keychain helper只通过长度前缀stdin/stdout传值，API Key不进入命令参数或环境变量。
 
-Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产生有界付费调用，不作为普通测试运行。已有结果见provider-verification.json。协议见工作区docs/round-eyes-protocol-v1.md；当前验收状态见verification.json。真实API、设备显示、麦克风、板端喇叭和安装验收分开记录，pending不等于通过。
+Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产生有界付费调用，不作为普通测试运行。已有结果见provider-verification.json。协议见工作区docs/round-eyes-protocol-v1.md；当前验收状态见verification.json。当前已通过一轮实机麦克风、眼神与Mac播放；10轮/10分钟和板端喇叭仍待验收。真实API、设备显示、麦克风、板端喇叭和安装验收分开记录，pending不等于通过。
 
 ## 更新、回滚与卸载
 

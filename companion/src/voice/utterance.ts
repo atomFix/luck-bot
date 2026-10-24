@@ -11,6 +11,7 @@ export class UtteranceBuffer {
   if(f.sample_rate_khz!==16||f.stream_id!==this.stream||f.turn_seq!==this.turn||f.frame_seq!==this.next++||f.pcm.length%2){this.cancel();throw new Error('audio_gap');}
   this.size+=f.pcm.length;if(this.size>960000){this.cancel();throw new Error('utterance_too_long');}this.chunks.push(f.pcm.slice());this.ended=f.end;
  }
+ finishAtEndpoint():Uint8Array{if(this.cancelled)throw new Error('cancelled');if(!this.size)throw new Error('audio_incomplete');this.ended=true;return this.finish();}
  finish():Uint8Array{if(this.cancelled)throw new Error('cancelled');if(!this.ended)throw new Error('audio_incomplete');return Buffer.concat(this.chunks);}
  cancel(){this.cancelled=true;this.chunks=[];this.size=0;}
 }

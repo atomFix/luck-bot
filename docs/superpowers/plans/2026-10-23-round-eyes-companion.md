@@ -293,3 +293,6 @@ assert.equal(trace.includes('old-turn-play'), false);
 ## 2026-10-23 追加范围确认
 
 用户要求为 MiniMax 的 ASR/TTS 保留 DashScope 切换接口，已纳入任务1、9、10和共享合同。当前只更新设计及计划，尚未创建程序适配器、保存阿里凭据或调用该地址。DashScope接口预留与实际可用验收分别记录；ASR/TTS供应商切换不影响板端PCM协议及DeepSeek语义链路。
+
+
+2026-10-24 implementation adjustment: fixed-length physical mic ASR proved the audio transport was valid, while board AFE endpoint repeatedly stayed in speech. Move authoritative endpoint detection to the approved Mac companion architecture using bundled CPU Silero VAD; keep board capture/transport and30s safety cap. Host cancellation acknowledgement precedes ASR. Added cancellation/gap/no-speech/real inference tests, native output crash regression and bounded playback queue. One complete physical voice round passed with user confirmation; long soak remains separate.

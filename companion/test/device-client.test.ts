@@ -17,3 +17,8 @@ test('aborted and old turns cannot send or replay commands',async()=>{
  await assert.rejects(c.react({emotion:'happy',hold_ms:1200},{id:4,signal:new AbortController().signal},'voice'),/stale/);
  assert.equal(w.sent.length,0);w.close();
 });
+test('connection failures retain a known transport code without exposing arbitrary errors',async()=>{
+ const {connectionFailure}=await import('../src/device/client.js');
+ assert.equal(connectionFailure(Object.assign(new Error('private details'),{code:'EHOSTUNREACH'})).message,'device_connection_failed_ehostunreach');
+ assert.equal(connectionFailure(Object.assign(new Error('private details'),{code:'private-secret'})).message,'device_connection_failed');
+});

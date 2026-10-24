@@ -2,6 +2,11 @@ import {EventEmitter} from 'node:events';import {performance} from 'node:perf_ho
 import type {DeviceClient,DeviceStatus,Reaction,Turn,Applied,AudioFrame,Secrets} from '../contracts.js';
 import {encodeAudio,decodeAudio} from '../protocol/audio-frame.js';import {parseReaction} from '../protocol/schema.js';import {toDeviceDeadline} from '../protocol/clock.js';
 import {pinnedSocket,type PairingRecord} from './pinned-transport.js';
+export function connectionFailure(error:unknown):Error {
+ const code=typeof error==='object'&&error!==null&&'code' in error ? String(error.code) : '';
+ const allowed=['EHOSTUNREACH','ENETUNREACH','EACCES','EPERM','ECONNREFUSED','ECONNRESET','ETIMEDOUT','ENOTFOUND','CERT_HAS_EXPIRED','DEPTH_ZERO_SELF_SIGNED_CERT','ERR_TLS_CERT_ALTNAME_INVALID'];
+ return new Error('device_connection_failed'+(allowed.includes(code)?'_'+code.toLowerCase():''));
+}
 export class DeviceConnection extends EventEmitter implements DeviceClient {
  private seq=0;private turn=0;private closed=false;private clock:{host_ms:number;device_ms:number;rtt_ms:number};
  private pending=new Map<string,{resolve:(value:any)=>void;reject:(error:Error)=>void;cleanup:()=>void}>();
@@ -51,7 +56,7 @@ export async function connect(p:PairingRecord,secrets:Secrets,signal:AbortSignal
  signal.throwIfAborted();const ws=pinnedSocket(p);return new Promise((resolve,reject)=>{
   const began=performance.now();const timeout=setTimeout(()=>fail(new Error('device_timeout')),6000);
   const abort=()=>fail(new Error('cancelled'));const cleanup=()=>{clearTimeout(timeout);signal.removeEventListener('abort',abort);ws.off('message',message);ws.off('error',fail);};
-  const fail=(_e:unknown)=>{cleanup();ws.close();reject(new Error('device_connection_failed'));};
+  const fail=(_e:unknown)=>{cleanup();ws.close();reject(connectionFailure(_e));};
   const message=(data:WebSocket.RawData)=>{try{const m=JSON.parse(data.toString());if(m.type!=='status'||m.device_id!==p.device_id)throw new Error();cleanup();resolve(new DeviceConnection(ws,m,performance.now()-began));}catch{fail(null);}};
   signal.addEventListener('abort',abort,{once:true});ws.once('error',fail);ws.once('message',message);ws.once('open',()=>ws.send(JSON.stringify({type:'auth',controller_id:p.controller_id,token})));
  });

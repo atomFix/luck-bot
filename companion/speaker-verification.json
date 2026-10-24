@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-10-24T12:43:39.029251+08:00",
-  "source_commit": "2739986",
+  "as_of": "2026-10-24T12:56:20.188461+08:00",
+  "source_commit": "b54890a",
   "tests": {
     "typescript": "passed",
-    "node_tests": 86,
+    "node_tests": 89,
     "native_companion": "passed",
     "native_eyes": "passed",
     "esp_idf_build": "passed",
@@ -58,8 +58,7 @@
     "unknown_and_mixed_speaker_accuracy",
     "wake_and_playback_echo_physical_acceptance",
     "sustained_soak",
-    "board_speaker_absent",
-    "physical_semantic_eye_feedback_confirmation"
+    "board_speaker_absent"
   ],
   "user_enrollment": {
     "status": "passed",
@@ -70,7 +69,7 @@
     "note": "Real user completed enrollment; no name, embedding or raw samples in this report"
   },
   "ambient_live": {
-    "status": "semantic_and_ledger_passed_display_pending",
+    "status": "passed_user_confirmed_semantic_eye_feedback",
     "outcomes": [
       {
         "status": "completed",
@@ -105,7 +104,51 @@
       "asr": 3,
       "reaction": 3
     },
-    "user_visual_feedback": "listening_seen_semantic_expression_not_seen",
-    "note": "Device ACK proves command accepted, not physical eye rendering. Manual visual probe awaiting user confirmation."
+    "user_visual_feedback": "user_confirmed_happy_eyes_after_no_wake_sentence",
+    "note": "User confirms visible happy eyes on enrolled no-wake speech. Short/unknown sounds still ignored; no claim of universal identification accuracy.",
+    "latest_completed": {
+      "status": "completed",
+      "emotion": "happy",
+      "hold_ms": 2500,
+      "speaker_matched": 1,
+      "text_chars": 26
+    },
+    "latest_completed_calls": [
+      {
+        "kind": "asr",
+        "status": "completed",
+        "duration_ms": 1094.0
+      },
+      {
+        "kind": "reaction",
+        "status": "completed",
+        "duration_ms": 724.0
+      }
+    ],
+    "latest_completed_timings": [
+      {
+        "event": "asr.done",
+        "duration_ms": 1106.0
+      },
+      {
+        "event": "reaction.ready",
+        "duration_ms": 726.0
+      },
+      {
+        "event": "reaction.applied",
+        "duration_ms": 35.0
+      }
+    ]
+  },
+  "calibration": {
+    "duration_ms": 10000,
+    "voiced_ms": 4800,
+    "rms": 7496,
+    "raw_band": "strict_match",
+    "voiced_band": "strict_match",
+    "gaps": 0,
+    "cloud_calls": 0,
+    "audio_saved": false,
+    "threshold_unchanged": true
   }
 }

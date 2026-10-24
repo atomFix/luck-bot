@@ -50,8 +50,14 @@ export async function request(
       if (meter) meterResponse(response, meter);
       return response;
     }
+    let response_data:unknown;
+    if(meta?.request_data!==undefined){
+      try{const raw=await readModelBody(response);let data;try{data=JSON.parse(raw.text);}catch{data=raw.text;}response_data={http_status:response.status,body:data,truncated:raw.truncated};}
+      catch{response_data={http_status:response.status,unavailable:"body_unreadable"};}
+    }
     await meter?.finish("failed", {
       error: providerError(response.status).message,
+      response_data,
     });
     await response.body?.cancel();
     if (attempt === 0 && (response.status === 429 || response.status >= 500)) {
@@ -102,4 +108,12 @@ export async function* sse(
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
+}
+
+export async function readModelBody(response:Response):Promise<{text:string;truncated:boolean}>{
+ if(!response.body)return {text:'',truncated:false};
+ const reader=response.body.getReader();const decoder=new TextDecoder();let text='',bytes=0,truncated=false;
+ try{while(true){const chunk=await reader.read();if(chunk.done){text+=decoder.decode();break;}const remaining=131072-bytes;const part=chunk.value.subarray(0,Math.max(0,remaining));bytes+=part.length;text+=decoder.decode(part,{stream:true});if(chunk.value.length>remaining){truncated=true;break;}}}
+ finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+ return {text,truncated};
 }

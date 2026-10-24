@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-24",
+  "feature": "Per-attempt actual model request and response in conversation detail",
+  "tests": {
+    "passed": 120,
+    "failed": 0
+  },
+  "typecheck": "pass",
+  "signed_bundle_manifest_and_probes": "pass",
+  "migration": {
+    "from": 1,
+    "to": 2,
+    "all_old_turn_ids_preserved": true
+  },
+  "preservation": {
+    "settings.json": true,
+    "speaker-vault.json": true
+  },
+  "real_round": [
+    {
+      "kind": "reaction",
+      "request_has_actual_messages": true,
+      "request_model": "deepseek-flash",
+      "request_message_count": 2,
+      "response_format": "json",
+      "response_event_count": 0,
+      "stream_complete": null,
+      "usage": {
+        "input_tokens": 461,
+        "output_tokens": 12,
+        "total_tokens": 473,
+        "cache_hit_tokens": 256,
+        "cache_miss_tokens": 205
+      }
+    },
+    {
+      "kind": "reply",
+      "request_has_actual_messages": true,
+      "request_model": "deepseek-flash",
+      "request_message_count": 2,
+      "response_format": "sse",
+      "response_event_count": 22,
+      "stream_complete": true,
+      "usage": {
+        "input_tokens": 177,
+        "output_tokens": 20,
+        "total_tokens": 197,
+        "cache_hit_tokens": 0,
+        "cache_miss_tokens": 177
+      }
+    }
+  ],
+  "browser_verification": [
+    "Conversation list timestamp opens detail",
+    "Request JSON includes system/user messages and actual model parameters",
+    "Actual JSON reaction response expands",
+    "SSE reply shows ordered events, combined output and complete flag",
+    "Historical call explicitly shows payload unavailable",
+    "Local fast-path shows no model call",
+    "Final dark-theme screenshot saved locally"
+  ],
+  "privacy": [
+    "Only reaction/reply JSON bodies retained; no HTTP auth headers/audio",
+    "Common key fields and sk-/Bearer credentials redacted before SQLite persistence",
+    "Privacy-off blocks future payload capture, including off-to-on midcall",
+    "Text cleanup removes payloads and retains usage",
+    "Each body capped at32768serialized characters with explicit truncation; successful response reading bounded128KiB"
+  ],
+  "limitations": [
+    "Existing records have no recoverable model payloads",
+    "Sudden process termination may leave request without returned data",
+    "Payloads are parsed JSON/SSE events, not byte-for-byte network traces"
+  ]
+}

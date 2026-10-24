@@ -304,6 +304,25 @@
       ]),
     );
     host.append(requests);
+    host.append(node("h3","大模型收发数据"),node("p","展示本次实际调用的消息与参数、模型返回数据。鉴权信息脱敏；过长数据标注截断。", "muted"));
+    const modelCalls=d.attempts.filter(a=>["reaction","reply"].includes(a.kind));
+    if(!modelCalls.length)host.append(node("p","本轮没有大模型调用记录（本地处理或已忽略）。", "muted"));
+    const payloadView=(title,payload)=>{
+      const block=node("details",null,"model-payload");block.append(node("summary",title));
+      if(!payload){block.append(node("p","未采集到数据：历史记录无法补录；也可能是正文保存已关闭、记录已清理或请求尚未返回。","muted"));return block;}
+      if(payload.truncated||payload.data?.truncated)block.append(node("p","数据过长，以下仅显示已保留的部分。","payload-warning"));
+      if(payload.data?.format==="sse"){
+        block.append(node("p",payload.data.complete?"流式返回已结束":"流式返回未完整结束，仅保留已收到的事件。","muted"));
+        const content=(payload.data.events??[]).map(e=>e.choices?.[0]?.delta?.content??"").join("");
+        if(content)block.append(node("h4","模型输出正文"),node("pre",content,"payload-json"));
+      }
+      block.append(node("pre",payload.truncated?payload.preview:JSON.stringify(payload.data??payload,null,2),"payload-json"));return block;
+    };
+    modelCalls.forEach((a,index)=>{
+      const call=node("details",null,"model-call");call.open=index===0;
+      call.append(node("summary",`${index+1}. ${a.kind==="reaction"?"表情判断":"对话回复"} · ${a.provider} / ${a.actual_model??a.model} · ${label(a.status)} · ${ms(a.duration_ms)}`));
+      call.append(payloadView("发送给大模型的数据",a.payload?.request),payloadView("大模型返回的数据",a.payload?.response));host.append(call);
+    });
     host.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   async function usage() {

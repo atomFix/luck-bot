@@ -1,3 +1,4 @@
+import {capturePayload} from './payloads.mjs';
 import { parentPort, workerData } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
 import { chmodSync, existsSync, copyFileSync } from "node:fs";
@@ -14,7 +15,7 @@ try {
   chmodSync(path, 0o600);
   db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000");
   const version = db.prepare("PRAGMA user_version").get().user_version;
-  if (version > 1) throw new Error("storage_future_schema");
+  if (version > 2) throw new Error("storage_future_schema");
   if (version < 1) {
     if (existed) {
       const backup = path + ".pre-v1-" + now();
@@ -32,6 +33,9 @@ try {
  CREATE TABLE cost_items(attempt_id TEXT NOT NULL REFERENCES provider_attempts(id) ON DELETE CASCADE,kind TEXT NOT NULL,currency TEXT NOT NULL,amount TEXT NOT NULL,metric TEXT NOT NULL,PRIMARY KEY(attempt_id,kind,currency,metric));
  CREATE TABLE admin_events(id TEXT PRIMARY KEY,event TEXT NOT NULL,at INTEGER NOT NULL,meta TEXT NOT NULL);
  CREATE TABLE admin_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);INSERT INTO admin_settings VALUES('record_text','true');INSERT INTO schema_migrations VALUES(1,${now()});PRAGMA user_version=1;COMMIT;`);
+  }
+  if(version < 2) {
+    db.exec(`BEGIN;CREATE TABLE model_payloads(attempt_id TEXT PRIMARY KEY REFERENCES provider_attempts(id) ON DELETE CASCADE,request_data TEXT,response_data TEXT);INSERT INTO schema_migrations VALUES(2,${now()});PRAGMA user_version=2;COMMIT;`);
   }
   db.exec(
     "PRAGMA journal_mode=WAL; UPDATE turns SET status='interrupted',error='app_interrupted' WHERE status='running';UPDATE provider_attempts SET status='interrupted',error='usage_unknown' WHERE status='running';",
@@ -164,7 +168,7 @@ function enrichTurn(turn) {
 }
 function execute(op, i) {
   if (initError) throw new Error(initError);
-  if (op === "ready") return { version: 1, record_text: recordText() };
+  if (op === "ready") return { version: 2, record_text: recordText() };
   if (op === "close") {
     db.close();
     return { ok: true };
@@ -275,6 +279,8 @@ function execute(op, i) {
       integer(i.started_at),
       json(chosen),
     );
+    if(recordText() && ["reaction","reply"].includes(i.kind) && i.request_data != null)
+      db.prepare("INSERT OR IGNORE INTO model_payloads(attempt_id,request_data) VALUES(?,?)").run(i.id,json(capturePayload(i.request_data)));
     return { id: i.id };
   }
   if (op === "finishAttempt") {
@@ -305,6 +311,8 @@ function execute(op, i) {
         Object.keys(usage).length ? json(usage) : null,
         i.id,
       );
+      if(recordText() && i.response_data != null)
+        db.prepare("UPDATE model_payloads SET response_data=? WHERE attempt_id=?").run(json(capturePayload(i.response_data)),i.id);
       for (const [metric, value] of Object.entries(usage))
         db.prepare("INSERT INTO usage_items VALUES(?,?,?,?)").run(
           i.id,
@@ -381,6 +389,7 @@ function execute(op, i) {
         .all(i.id)
         .map((r) => ({
           ...r,
+          payload: (()=>{const p=db.prepare("SELECT request_data,response_data FROM model_payloads WHERE attempt_id=?").get(r.id);return p?{request:parse(p.request_data),response:parse(p.response_data)}:null;})(),
           usage: parse(r.usage),
           price_snapshot: parse(r.price_snapshot),
           costs: db
@@ -537,6 +546,7 @@ function execute(op, i) {
         db.prepare(
           "UPDATE turns SET user_text=NULL,reply_text=NULL WHERE started_at<? AND status!='running'",
         ).run(i.before);
+      if(i.scope === "text") db.prepare("DELETE FROM model_payloads WHERE attempt_id IN (SELECT a.id FROM provider_attempts a JOIN turns t ON t.id=a.turn_id WHERE t.started_at<? AND t.status!='running')").run(i.before);
       audit("records.cleared", { count, scope: i.scope });
       db.exec("COMMIT");
     } catch (e) {

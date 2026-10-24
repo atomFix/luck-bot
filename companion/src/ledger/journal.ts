@@ -121,6 +121,7 @@ export type MeterMeta = {
   provider: string;
   model: string;
   logical_id?: string;
+  request_data?: unknown;
 };
 export async function beginAttempt(meta: MeterMeta) {
   const context = scope.getStore();

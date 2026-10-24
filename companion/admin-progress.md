@@ -24,3 +24,9 @@ No deferred Minor findings reported; no repeat independent review dispatched.
 
 Task 6 deploy: post-review signed package/manifest and bundled SQLite probe passed; unchanged credential helper hash, previous app preserved, installed and connected. One bounded real text turn (no ASR/TTS) completed in1598ms: reaction628ms, reply868ms, real ACK71ms, usage243 input/14 output tokens across2 attempts. Read-only reopening of actual SQLite confirmed records; actual browser showed1 completed turn/2 attempts/token counts. No rate supplied, both amounts remain unknown. Existing old-app status had tts_overflow before upgrade; no claim this admin change fixes physical voice/TTS limits. Corrected empty cost copy to “费用未知” to avoid suggesting an unpriced request was unpaid. Repackaging this copy correction, without another paid call.
 Task 6 final: cost-copy package passed signature/manifest/runtime probe, upgrade snapshotted actual SQLite privately and preserved app rollback/credentials. Reconnected without re-pairing; actual turn survived upgrade. Admin project ready to fast-forward authorized master and push. Mobile viewport not independently exercised; no public distribution or cloud DB implementation. Speaker project remains next.
+Task 1: complete — b6a2246, SQLite/money/recovery/privacy tests + full54/54.
+Task 2: complete — bf40976, metering/retry/stream fixture tests + full57/57.
+Task 3: complete — 02e0dc3, capture lifecycle test + full58/58.
+Task 4: complete — 3d93718, protected API/sentinel tests + full59/59.
+Task 5: complete — 61bc058, actual fixture browser checks + full60/60.
+Task 6: complete — 424d29b/fddba8f, one final review with3 Important RED→GREEN fixes; final merged full63/63, tsc, both native C++ suites, package signatures/manifest/bundled SQLite and installed actual record survived upgrade. Current admin task complete; separate approved speaker implementation remains unstarted.

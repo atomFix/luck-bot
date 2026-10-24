@@ -62,3 +62,13 @@ API Key 仍在 Keychain：配置页小眼睛可显示已保存值，切页/失�
 每个检测到的后台句子记入SQLite：匹配档案、忽略原因、ASR文字（按正文设置）、表情、阶段耗时、请求用量与费用来源。声纹向量以AES256GCM加密存于本机`speaker-vault.json`，独立密钥存Keychain，不进入SQLite、不通过CLI/MCP导出；删除或停用清空该人的表情上下文。声纹是互动筛选，不作为身份安全认证。
 
 源码开发先执行 `node scripts/fetch-speaker-model.mjs`；正式安装包已含经大小/SHA256校验的本地模型。打包会运行实际 bundled runtime 的声纹192维探针及SQLite重开探针。合成音频的加载探针不等于本人声纹准确率验收，真实效果以本人录入和现场测试为准。
+
+## 本地流式识别与快速表情
+
+“声纹与聆听 → 响应加速”可以选择本地流式中文识别和明确简单表达的本地快判。“启用极速预设”同时启用两项，并把句尾停顿设为600毫秒；等待开口仍为20秒。原有云端ASR模型/地址与Keychain凭据保持可选，不会自动删除。取消本地识别勾选可切回已配置的云端ASR。本地识别失败会报错，不自动发起付费云端ASR。
+
+背景音频在本地边说边解码，只有最终句子的声纹匹配通过后，文字才会进入表情流程和SQLite（受正文保存设置控制）。本地快判只接受明确简单表达；否定、反讽、问题、条件句、第三人称故事和复杂语义交给DeepSeek。当前已验证的本地模型只支持中文；姓名、生僻词和夹杂外语的准确率需要现场检查。普通后台表情不请求回复或TTS，唤醒后的聊天仍使用所选TTS。
+
+本地ASR/快判是CPU计算，账本记录 `capture.ended`、`asr.local.done` 和 `reaction.local` 阶段；只有真正调用服务商时才产生provider_attempts，不虚构本地token/付费成本。`reaction.applied`表示板端确认接收，物理显示仍需现场验收。模型、词表、BBPE和公共探针WAV均由固定URL/大小/SHA256校验，源码开发执行 `node scripts/fetch-asr-model.mjs`。打包运行 `verify-local-asr-runtime.mjs` 做实际 bundled runtime 的中文逐帧解码检查。
+
+升级前保留私有设置/声纹/SQLite快照；若回退到尚不识别performance字段的旧应用，需同时恢复对应的settings.json快照。不要把设备密钥、声纹档案、数据库或用户音频提交到仓库。

@@ -13,7 +13,7 @@ export async function startCompanion(dir=DATA_DIR){
  }catch(e){res.statusCode=400;res.end(JSON.stringify({error:e instanceof Error&&/^[a-zA-Z0-9_.-]+$/.test(e.message)?e.message:'operation_failed'}));}});
  // Refuse a duplicate daemon. Only remove a proven stale Unix socket.
  await new Promise<void>((resolve,reject)=>{daemon.once('error',reject);daemon.listen(socket,resolve);});await chmod(socket,0o600);
- local=await startLocalServer({secretStore:secrets,actions:(n,b)=>app.action(n,b),state:()=>app.state(),credentialsChanged:()=>app.resetServices()});
+ local=await startLocalServer({secretStore:secrets,actions:(n,b)=>app.action(n,b),state:()=>app.state(),credentialsChanged:()=>app.resetServices(),admin:(op,input)=>ledger.call(op,input)});
  const url=local.url+'/#'+local.bootstrap;await writeFile(join(dir,'launch.json'),JSON.stringify({url,pid:process.pid,app_path:process.env.ROUND_EYES_APP_PATH??null}),{mode:0o600});
  const close=async()=>{await app.disconnect();await journal.close();await ledger.close();await local?.close();await new Promise<void>(r=>daemon.close(()=>r()));await unlink(socket).catch(()=>{});};
  return {url,close,app};

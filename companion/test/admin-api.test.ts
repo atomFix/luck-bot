@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm,readFile} from 'node:fs/promises';import {join} from 'node:path';import {tmpdir} from 'node:os';import {startLocalServer} from '../src/local/server.js';import {Ledger} from '../src/ledger/repository.js';
+test('only explicit authenticated UI reveal exposes key; state, ledger and hostile calls do not',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'admin-api-'));const path=join(dir,'db');const ledger=await Ledger.open(path);const sentinel='credential-sentinel-private';const server=await startLocalServer({secretStore:{get:async()=>sentinel,has:async()=>true,set:async()=>{},delete:async()=>{}},actions:async()=>{throw new Error('unknown_action');},admin:(op,input)=>ledger.call(op,input)});
+ try{const login=await fetch(server.url+'/api/bootstrap',{method:'POST',headers:{Origin:server.url,'Content-Type':'application/json'},body:JSON.stringify({token:server.bootstrap})});const cookie=login.headers.get('set-cookie')!.split(';')[0]!;const {csrf}=await login.json() as any;
+ const post=(path:string,input:any,extra={})=>fetch(server.url+'/api/'+path,{method:'POST',headers:{Origin:server.url,Cookie:cookie,'X-CSRF-Token':csrf,'Content-Type':'application/json',...extra},body:JSON.stringify(input)});
+ assert.equal((await post('credentials/reveal',{provider:'deepseek'},{Origin:'https://evil.example'})).status,403);assert.equal((await post('credentials/reveal',{provider:'deepseek'},{'X-CSRF-Token':'bad'})).status,403);
+ const reveal=await post('credentials/reveal',{provider:'deepseek'});assert.equal(reveal.status,200);assert.equal((await reveal.json() as any).value,sentinel);
+ const state=await (await fetch(server.url+'/api/state',{headers:{Cookie:cookie}})).text();assert(!state.includes(sentinel));
+ assert.equal((await post('admin',{op:'beginTurn',input:{id:'forbidden'}})).status,400);const summary=await post('admin',{op:'summary',input:{}});assert.equal(summary.status,200);assert.equal((await summary.json() as any).turns,0);
+ await ledger.close();assert(!(await readFile(path)).includes(Buffer.from(sentinel)));
+ }finally{await server.close();await ledger.close();await rm(dir,{recursive:true,force:true});}
+});

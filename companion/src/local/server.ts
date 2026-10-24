@@ -1,6 +1,6 @@
 import {createServer,type IncomingMessage} from 'node:http';import {readFile} from 'node:fs/promises';import {fileURLToPath} from 'node:url';import {randomBytes,timingSafeEqual} from 'node:crypto';import type {Secrets} from '../contracts.js';
 const safeEqual=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string}) {
+export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;admin?:(op:string,input:any)=>Promise<any>}) {
  const bootstrap=randomBytes(32).toString('hex'),session=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');const tokens=new Map([[bootstrap,Date.now()+60000]]);let url='';
  async function body(req:IncomingMessage){let size=0;const chunks:Buffer[]=[];for await(const b of req){size+=b.length;if(size>8192)throw new Error('body_size');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
  const server=createServer(async(req,res)=>{
@@ -22,16 +22,22 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
     }
     if(req.method!=='POST'||req.headers.origin!==url||req.headers['x-csrf-token']!==csrf||!req.headers['content-type']?.startsWith('application/json')){reply(403,{error:'forbidden'});return;}
     const b=await body(req);
+    if(path==='/api/admin'){
+     if(!options.admin||!['list','detail','summary','prices','savePrice','privacy','clear'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('admin_operation');reply(200,await options.admin(b.op,b.input));return;
+    }
+    if(path==='/api/credentials/reveal'){
+     if(!['deepseek','minimax','dashscope'].includes(b.provider))throw new Error('credential_format');await options.admin?.('audit',{event:'credential.revealed',provider:b.provider});const value=await options.secretStore.get('provider/'+b.provider);reply(200,{value});return;
+    }
     if(path==='/api/credentials'){
      if(!['deepseek','minimax','dashscope'].includes(b.provider)||(b.remove!==true&&(typeof b.value!=='string'||!b.value.trim()||b.value.length>4096)))throw new Error('credential_format');
      if(b.remove===true)await options.secretStore.delete('provider/'+b.provider);else await options.secretStore.set('provider/'+b.provider,b.value);
-     await options.credentialsChanged?.();reply(200,{configured:b.remove!==true});return;
+     await options.admin?.('audit',{event:'credential.changed',provider:b.provider});await options.credentialsChanged?.();reply(200,{configured:b.remove!==true});return;
     }
     const action=path.slice(5);if(!/^[a-z-]{1,40}$/.test(action)){reply(404,{error:'unknown_action'});return;}
-    reply(200,await options.actions(action,b));return;
+    const result=await options.actions(action,b);if(action==='settings')await options.admin?.('audit',{event:'configuration.changed'});reply(200,result);return;
    }
    if(req.method!=='GET'){reply(405,{error:'method'});return;}
-   const files:Record<string,[string,string]>={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8']};
+   const files:Record<string,[string,string]>={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/admin.js':['admin.js','text/javascript; charset=utf-8']};
    const asset=files[path];if(!asset){reply(404,{error:'not_found'});return;}
    const data=await readFile((options.uiDir??fileURLToPath(new URL('../../ui/',import.meta.url)))+'/'+asset[0]);res.setHeader('Content-Type',asset[1]);res.end(data);
   }catch(error){const code=error instanceof Error&&/^[a-z_0-9]+$/.test(error.message)?error.message:'operation_failed';reply(400,{error:code});}

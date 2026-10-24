@@ -476,16 +476,23 @@
   }
   function expressions() {
     if (expressionsBuilt) return;
-    const items = window.RoundEyesEmotionCatalog.items;
+    const catalog=window.RoundEyesEmotionCatalog, items=catalog.items;
+    const selector=$("expression-facing");
+    if(!selector.options.length)for(const direction of window.RoundEyesGeometry.directions){const option=node("option",direction.label);option.value=direction.key;selector.append(option);}
+    const direction=window.RoundEyesGeometry.directions.find(d=>d.key===selector.value)??window.RoundEyesGeometry.directions[0];
     $("expressions-single-tab").textContent = `单表情（${items.length}）`;
-    $("expressions-single-summary").textContent = `${items.length} 种可调用表情。每张卡展示代表眼型，可预览眨眼或发送到圆屏。`;
+    $("expressions-single-summary").textContent = `${items.length} 种语义表情 · ${catalog.pose_count} 个基础眼型 · 9 种朝向。眼型采用饱满胶囊与球面透视；预览包含自然眨眼和姿态变化。`;
+    $("expressions-single-grid").replaceChildren();
     for (const item of items) {
       const card = node("article", null, "expression-card single-expression");
+      const step={emotion:item.key,duration_ms:8000,scale:1,shake:0,blink:1,transition_ms:800,look_x:direction.x,look_y:direction.y};
       card.append(node("h2", item.zh), node("span", item.key, "expression-key"));
-      card.append(window.RoundEyesEmotionUI.animation({steps: [{emotion: item.key, duration_ms: 3600, scale: 1, shake: 0, blink: 2, transition_ms: 300}]}));
-      card.append(expressionPlayButton(window.RoundEyesEmotionUI.format(item.key), () => api.call("react", {emotion: item.key, hold_ms: 1600, source: "manual"})));
+      card.append(window.RoundEyesEmotionUI.animation({steps:[step]}));
+      card.append(node("p",selector.value==='auto'?window.RoundEyesGeometry.facingLabel(item.poses[0]):direction.label,"expression-facing-label"));
+      card.append(expressionPlayButton(window.RoundEyesEmotionUI.format(item.key)+' · '+direction.label, () => api.call("animation", {plan:{scene:'manual_face',steps:[{...step,duration_ms:4200}]}})));
       $("expressions-single-grid").append(card);
     }
+    selector.onchange=()=>{expressionsBuilt=false;expressions();};
     expressionsBuilt = true;
   }
   async function expressionSeries() {

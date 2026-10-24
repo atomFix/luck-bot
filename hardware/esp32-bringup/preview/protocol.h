@@ -9,7 +9,7 @@ inline bool Control(EyesModel& model,const std::string& line,uint64_t now){
  if(op=="pose"){
   if(value=="auto"){model.ForcePose(std::nullopt,now);return true;}
   if(value.empty()||value.find_first_not_of("0123456789")!=std::string::npos||value.size()>2)return false;
-  int p=std::stoi(value);if(p>=25)return false;model.ForcePose(p,now);return true;
+  int p=std::stoi(value);if(p>=int(kPoseCount))return false;model.ForcePose(p,now);return true;
  }
  if(op=="emotion"){model.SetEmotion(value,now);return true;}
  if(op=="behavior"){for(int i=0;i<6;++i)if(value==BehaviorName(static_cast<Behavior>(i))){model.SetBehavior(static_cast<Behavior>(i),now);return true;}return false;}

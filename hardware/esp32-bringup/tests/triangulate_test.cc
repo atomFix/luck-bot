@@ -6,7 +6,7 @@ using namespace round_eyes;
 #define CHECK(x) do{if(!(x)){std::fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#x);std::exit(1);}}while(0)
 float Cross(Point a,Point b,Point c){return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
 int main(){
- for(int a=0;a<25;++a)for(int b=0;b<25;++b){
+ for(size_t a=0;a<kPoseCount;++a)for(size_t b=0;b<kPoseCount;++b){
   EyesModel m(42);m.ForcePose(a,0);m.Tick(0);m.Tick(1000);m.ForcePose(b,1000);
   for(int t=1000;t<2200;t+=40)for(auto& p:m.Tick(t).eyes){
    double area=0;for(size_t i=0;i<p.size();++i){auto q=p[(i+1)%p.size()];area+=p[i].x*q.y-q.x*p[i].y;}

@@ -40,23 +40,23 @@ int main() {
     Valid(a.Tick(0));
     a.SetEmotion("unknown",0); b.SetEmotion("neutral",0);
     for(uint64_t t=0;t<16000;t+=40) CHECK(Same(a.Tick(t),b.Tick(t)));
-    for(uint8_t from=0;from<25;++from) for(uint8_t to=0;to<25;++to) {
+    for(uint8_t from=0;from<kPoseCount;++from) for(uint8_t to=0;to<kPoseCount;++to) {
         EyesModel m(1); m.ForcePose(from,0); m.Tick(0); m.Tick(1000);
         m.ForcePose(to,1000);
         for(uint64_t t=1000;t<2400;t+=20){auto f=m.Tick(t);CHECK(f.pose==to);Valid(f);}
     }
     a.ForcePose(24,17000);CHECK(a.Tick(17000).pose==24);
-    a.ForcePose(25,17000);CHECK(a.Tick(17040).pose==24);
+    a.ForcePose(kPoseCount,17000);CHECK(a.Tick(17040).pose==24);
     a.ForcePose(std::nullopt,18000);a.SetEmotion("angry",18000);CHECK(a.Tick(18000).pose==7);
     a.SetBehavior(Behavior::Listening,18100);CHECK(a.Tick(18100).behavior==Behavior::Listening);
     CHECK(a.Tick(18100).pose==10); // Listening overrides any previous emotion.
     a.SetBehavior(Behavior::Idle,18200);CHECK(a.Tick(18200).pose==7);
     EyesModel focus(1);focus.SetEmotion("neutral",0);for(uint64_t t=0;t<20000;t+=40)CHECK(focus.Tick(t).pose==0);
-    for(const auto& emotion:kEmotions){EyesModel listening(2);listening.SetEmotion(emotion.key,0);listening.SetBehavior(Behavior::Listening,0);for(uint64_t t=0;t<12000;t+=40)CHECK(listening.Tick(t).pose==10);}
+    for(const auto& emotion:kEmotions){EyesModel listening(2);listening.SetEmotion(emotion.key,0);listening.SetBehavior(Behavior::Listening,0);for(uint64_t t=0;t<12000;t+=40){auto pose=listening.Tick(t).pose;CHECK(pose==10||pose==33);}}
     auto old=a.Tick(20000);CHECK(Same(old,a.Tick(19000)));
     a.ObserveAudio(std::numeric_limits<float>::quiet_NaN(),21000);
     a.ObserveAudio(std::numeric_limits<float>::infinity(),21000);
     Valid(a.Tick(900000));
     a.SetEmotion("sleepy",900000);a.ForcePose(13,900000);Valid(a.Tick(900500));
-    std::puts("PASS eyes model: 625 transitions, safety, deterministic motion, fallback, timing and interruption");
+    std::puts("PASS eyes model: all pose transitions, safety, deterministic motion, fallback, timing and interruption");
 }

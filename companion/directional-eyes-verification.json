@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-24",
+  "semantic_emotions": 21,
+  "base_poses": 41,
+  "gallery_directions": 9,
+  "reference": "https://github.com/blessonism/grok-icon-study",
+  "implementation": "Independent capsule and ellipse geometry with spherical yaw, pitch and roll; no extracted artwork or reference geometry copied",
+  "firmware": {
+    "offset": "0x700000",
+    "active_slot": 1,
+    "firmware_bytes": 3594992,
+    "sha256": "3620f1897b5f6f65b1146eaae5ee8ed47440dee311006cb92b9ff54efe6b3355",
+    "application_backup_created": true,
+    "flash_verified": true
+  },
+  "checks": {
+    "typescript_tests_passed": 163,
+    "typescript_check": true,
+    "native_suites_passed": ["eyes_model", "triangulate", "protocol", "dirty_region", "rasterize", "timeline", "expression_bounds", "signals"],
+    "native_browser_coordinate_tolerance_px": 0.08,
+    "signed_companion_installed": true,
+    "pairing_preserved": true,
+    "all_21_gallery_cards_rendered": true,
+    "direction_selector_and_local_preview_checked": true,
+    "left_happy_gallery_device_ack": true,
+    "mobile_viewport_width": 390,
+    "mobile_document_width": 375,
+    "management_port": 4382,
+    "final_device_connected": true,
+    "final_background_state": "listening"
+  },
+  "live_demo": {
+    "scene": "direction_demo",
+    "sequence": ["happy left", "happy right", "thinking upper right", "embarrassed lower left"],
+    "steps": 4,
+    "step_duration_ms": 4200,
+    "transition_ms": 800,
+    "ack_ms": 90
+  },
+  "renderer": {
+    "passive_monitor_seconds": 60,
+    "diagnostic_samples": 6,
+    "refresh_fps_min": 24.5,
+    "refresh_fps_max": 25.3,
+    "minimum_free_heap_bytes": 7731944,
+    "canvas_bytes": 76800,
+    "panic_detected": false
+  },
+  "limits": [
+    "Physical aesthetic acceptance awaits user observation; device command acknowledgements and renderer diagnostics are verified.",
+    "Browser preview shares native parameters but does not reproduce exact spring and raster timing.",
+    "Directional animation is not camera tracking or sound-source localization.",
+    "Short smoke test does not replace a long voice or overnight stability run."
+  ]
+}

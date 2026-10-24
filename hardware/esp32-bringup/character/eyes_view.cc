@@ -10,7 +10,7 @@ namespace round_eyes {
 EyesView::EyesView(lv_obj_t* parent){
  pixels_=static_cast<uint16_t*>(heap_caps_calloc(kRasterPixels,sizeof(uint16_t),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
  ESP_ERROR_CHECK(pixels_?ESP_OK:ESP_ERR_NO_MEM);
- ESP_LOGI("RoundEyes","renderer=contour-rgb565 canvas_bytes=61440 timer_period_ms=30 refresh_timer_ms=10 target_fps=25");
+ ESP_LOGI("RoundEyes","renderer=contour-rgb565 canvas_bytes=76800 timer_period_ms=30 refresh_timer_ms=10 target_fps=25");
  object_=lv_canvas_create(parent);lv_obj_remove_style_all(object_);lv_canvas_set_buffer(object_,pixels_,240,kRasterHeight,LV_COLOR_FORMAT_RGB565);lv_obj_center(object_);
  lv_obj_set_style_bg_color(object_,lv_color_black(),0);lv_obj_set_style_bg_opa(object_,LV_OPA_COVER,0);
  lv_obj_remove_flag(object_,LV_OBJ_FLAG_SCROLLABLE);

@@ -3,14 +3,14 @@
 #include <algorithm>
 #include <cmath>
 namespace round_eyes {
-EyesModel::EyesModel(uint32_t seed) : random_(seed?seed:1), current_(GetPose(0)) {}
+EyesModel::EyesModel(uint32_t seed) : random_(seed?seed:1), current_(GetPose(0)), facing_(GetPoseFacing(0)) {}
 uint32_t EyesModel::NextRandom(){random_^=random_<<13;random_^=random_>>17;random_^=random_<<5;return random_;}
 void EyesModel::SetEmotion(std::string_view key,uint64_t now) {
     uint8_t id=0; for(size_t i=0;i<kEmotions.size();++i)if(key==kEmotions[i].key)id=i;
     if(id!=emotion_){emotion_=id;pose_at_=now;}
 }
 void EyesModel::SetBehavior(Behavior b,uint64_t now) {if(b!=behavior_){behavior_=b;pose_at_=now;energy_=0;}}
-void EyesModel::ForcePose(std::optional<uint8_t> p,uint64_t now) {if(p&&*p>=25)return;forced_=p;pose_at_=now;}
+void EyesModel::ForcePose(std::optional<uint8_t> p,uint64_t now) {if(p&&*p>=kPoseCount)return;forced_=p;pose_at_=now;}
 void EyesModel::ObserveAudio(float e,uint64_t now){energy_=std::isfinite(e)?std::clamp(e,0.f,1.f):0;audio_at_=now;}
 Frame EyesModel::Tick(uint64_t now) {
     // A backwards timestamp must return precisely the last rendered geometry.
@@ -28,9 +28,19 @@ Frame EyesModel::Tick(uint64_t now) {
         if(behavior_==Behavior::Reconnecting)selected=(age/5200)%2?9:12;
         if(behavior_==Behavior::Waking)selected=1;
     }
-    if(behavior_==Behavior::Listening&&!motion_.active)selected=10;
+    if(behavior_==Behavior::Listening&&!motion_.active)selected=(age/5000)%2?33:10;
     pose_=forced_.value_or(selected);
     Pose target=GetPose(pose_);
+    Facing target_facing=GetPoseFacing(pose_);
+    if(!forced_&&!motion_.active&&emotion_==0&&behavior_==Behavior::Idle){
+        static constexpr float idle_yaw[]={.20f,.04f,-.24f,.04f};
+        target_facing.yaw=idle_yaw[(age/6500)%4];
+    }
+    if(motion_.active){if(std::abs(motion_.look_x)>.001f)target_facing.yaw=motion_.look_x*.55f;if(std::abs(motion_.look_y)>.001f)target_facing.pitch=-motion_.look_y*.36f;}
+    if(!forced_){target_facing.yaw+=.035f*std::sin(float(age%30000)*.0008f+pose_*.7f);target_facing.pitch+=.02f*std::sin(float(age%25000)*.0006f);}
+    target_facing.yaw=std::clamp(target_facing.yaw,-.65f,.65f);
+    target_facing.pitch=std::clamp(target_facing.pitch,-.38f,.38f);
+    target_facing.roll=std::clamp(target_facing.roll,-.30f,.30f);
     if(!started_){started_=true;last_=now;blink_at_=now+3500;}
     if(motion_changed&&motion_.blink_once)blink_at_=now;
     if(now>=blink_at_+240)blink_at_=now+static_cast<uint64_t>(((behavior_==Behavior::Listening?5000:3000)+NextRandom()%4000)/(motion_.active?std::max(.1f,motion_.blink):1.f));
@@ -39,7 +49,7 @@ Frame EyesModel::Tick(uint64_t now) {
     const float audio=(!motion_.active&&behavior_==Behavior::Speaking&&now>=audio_at_&&now-audio_at_<160)?energy_:0;
     for(auto& e:target){
         e.height*=1+.12f*audio;
-        if(motion_.active){e.x+=motion_.look_x*18;e.y+=motion_.look_y*12;e.width*=motion_.scale;e.height*=motion_.scale;}
+        if(motion_.active){e.width*=motion_.scale;e.height*=motion_.scale;}
         if(!forced_){
             e.x+=1.6f*std::sin(float(now%20000)*.0007f);e.y+=.7f*std::sin(float(now%17000)*.001f);
             if(behavior_==Behavior::Listening&&!motion_.active)e.y-=3;
@@ -50,9 +60,12 @@ Frame EyesModel::Tick(uint64_t now) {
     float remaining=float(std::min<uint64_t>(now-last_,250))*.001f;
     while(remaining>0){
         float dt=std::min(.016f,remaining);remaining-=dt;
+        const float omega=motion_.active?std::clamp(4000.f/motion_.transition_ms,5.f,30.f):12.f;
+        auto spring=[dt,omega](float& x,float& v,float goal){float a=omega*omega*(goal-x)-2*omega*v;v+=a*dt;x+=v*dt;};
+        spring(facing_.yaw,facing_velocity_.yaw,target_facing.yaw);
+        spring(facing_.pitch,facing_velocity_.pitch,target_facing.pitch);
+        spring(facing_.roll,facing_velocity_.roll,target_facing.roll);
         for(size_t i=0;i<2;++i){
-            const float omega=motion_.active?std::clamp(4000.f/motion_.transition_ms,5.f,30.f):15.f;
-            auto spring=[dt,omega](float& x,float& v,float goal){float a=omega*omega*(goal-x)-2*omega*v;v+=a*dt;x+=v*dt;};
             auto& c=current_[i];auto& v=velocity_[i];auto& t=target[i];
             spring(c.x,v.x,t.x);spring(c.y,v.y,t.y);spring(c.width,v.width,t.width);
             spring(c.height,v.height,t.height);spring(c.angle,v.angle,t.angle);
@@ -62,17 +75,32 @@ Frame EyesModel::Tick(uint64_t now) {
     motion_shake_+=( (motion_.active?motion_.shake:0)-motion_shake_)*std::min(1.f,float(now-last_)/150.f);
     last_=now;
     Frame f;f.pose=pose_;f.behavior=behavior_;
+    const float cy=std::cos(facing_.yaw),sy=std::sin(facing_.yaw),cp=std::cos(facing_.pitch),sp=std::sin(facing_.pitch),cr=std::cos(facing_.roll),sr=std::sin(facing_.roll);
+    float max_y=1;
     for(size_t e=0;e<2;++e){auto p=current_[e];
-        p.x+=motion_shake_*4.8f*std::sin(float(now%10000)*.045f);p.y+=motion_shake_*3.2f*std::sin(float(now%10000)*.057f);
+        p.x+=motion_shake_*3.2f*std::sin(float(now%10000)*.045f);p.y+=motion_shake_*2.3f*std::sin(float(now%10000)*.057f);
         float wake=behavior_==Behavior::Waking?std::min(1.f,.45f+float(age)*.55f/300):1.f;
         p.height=std::max(5.f,p.height*blink*wake);
+        const float radius=std::min(p.width,p.height)*.5f;
+        const float span_x=std::max(0.f,(p.width-p.height)*.5f),span_y=std::max(0.f,(p.height-p.width)*.5f);
+        const float capsule=std::clamp((p.power-2.f)*.5f,0.f,1.f);
         for(size_t i=0;i<kContourPoints;++i){float theta=float(i)*6.28318530718f/kContourPoints;
-            float co=std::cos(theta),si=std::sin(theta),power=2/std::clamp(p.power,2.f,4.f);
-            float u=std::copysign(std::pow(std::abs(co),power),co);
-            float x=u*p.width*.5f,y=std::copysign(std::pow(std::abs(si),power),si)*std::max(4.f,p.height)*.5f+p.bend*(1-u*u);
-            f.eyes[e][i]={p.x+x*std::cos(p.angle)-y*std::sin(p.angle),p.y+x*std::sin(p.angle)+y*std::cos(p.angle)};
+            float co=std::cos(theta),si=std::sin(theta);
+            const float pill_x=co*radius+(i<12||i>=36?span_x:-span_x),pill_y=si*radius+(i<24?span_y:-span_y);
+            float x=co*p.width*.5f*(1-capsule)+pill_x*capsule;
+            float y=si*p.height*.5f*(1-capsule)+pill_y*capsule;
+            float px=(p.x+x*std::cos(p.angle)-y*std::sin(p.angle)-120)/104.f;
+            float py=(p.y+x*std::sin(p.angle)+y*std::cos(p.angle)-120)/104.f;
+            const float length=std::sqrt(px*px+py*py);if(length>.94f){px*=.94f/length;py*=.94f/length;}
+            const float pz=std::sqrt(std::max(0.f,1-px*px-py*py));
+            const float tx=px*cy+pz*sy,tz=pz*cy-px*sy,ty=py*cp-tz*sp;
+            const float out_x=(tx*cr-ty*sr)*104.f,out_y=(tx*sr+ty*cr)*104.f;
+            f.eyes[e][i]={120+out_x,120+out_y};max_y=std::max(max_y,std::abs(out_y));
         }
     }
+    // Fit the complete silhouette, preserving curves rather than clipping vertices.
+    const float fit=std::min(1.f,(kEyeViewportHeight*.5f-3)/max_y);
+    if(fit<1)for(auto& eye:f.eyes)for(auto& p:eye){p.x=120+(p.x-120)*fit;p.y=120+(p.y-120)*fit;}
     return f;
 }
 const char* BehaviorName(Behavior b){static const char* names[]={"idle","waking","listening","waiting","speaking","reconnecting"};return names[static_cast<unsigned>(b)<6?static_cast<unsigned>(b):0];}

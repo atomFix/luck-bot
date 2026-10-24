@@ -13,3 +13,12 @@ test('localhost service rejects hostile origin host and CSRF, never reveals conf
   assert.equal((await fetch(server.url+'/api/bootstrap',{method:'POST',headers:{Origin:server.url,'Content-Type':'application/json'},body:JSON.stringify({token:server.bootstrap})})).status,403);
  }finally{await server.close();}
 });
+
+test('the management page serves every declared script including the directional renderer',async()=>{
+ const server=await startLocalServer({secretStore:{get:async()=>null,set:async()=>{},delete:async()=>{}},actions:async()=>({})});
+ try{
+  const response=await fetch(server.url+'/');assert.equal(response.status,200);const html=await response.text();
+  const scripts=[...html.matchAll(/<script src="([^"]+)"/g)].map(m=>m[1]!);assert(scripts.includes('/eye-geometry.js'));
+  for(const script of scripts){const asset=await fetch(server.url+script);assert.equal(asset.status,200,script);assert.match(asset.headers.get('content-type')??'',/javascript/);assert((await asset.text()).length>10);}
+ }finally{await server.close();}
+});

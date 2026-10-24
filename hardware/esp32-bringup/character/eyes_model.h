@@ -7,8 +7,10 @@
 #include <string_view>
 
 namespace round_eyes {
-constexpr size_t kPoseCount = 25;
+constexpr size_t kPoseCount = 41;
 constexpr size_t kContourPoints = 48;
+constexpr int kEyeViewportTop=40, kEyeViewportHeight=160;
+struct Facing {float yaw=0,pitch=0,roll=0;};
 enum class Behavior { Idle, Waking, Listening, Waiting, Speaking, Reconnecting };
 struct Point { float x = 0, y = 0; };
 using Contour = std::array<Point, kContourPoints>;
@@ -39,6 +41,7 @@ private:
     Behavior behavior_ = Behavior::Idle;
     std::optional<uint8_t> forced_;
     Pose current_{}, velocity_{};
+    Facing facing_{}, facing_velocity_{};
     uint64_t last_ = 0, pose_at_ = 0, blink_at_ = 3500, audio_at_ = 0;
     float energy_ = 0;
     bool started_ = false;

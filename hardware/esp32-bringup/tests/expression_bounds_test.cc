@@ -14,6 +14,7 @@ static void InCanvas(const Frame& f){
  }
 }
 int main(){
+ for(uint8_t i=0;i<kPoseCount;i++)for(const auto& eye:GetPose(i))assert(eye.bend==0); // no hooked smile silhouettes
  // Every callable emotion at the extreme accepted look/size/shake values.
  for(auto behavior:{Behavior::Idle,Behavior::Listening,Behavior::Waiting,Behavior::Speaking,Behavior::Reconnecting})
  for(unsigned emotion=0;emotion<kEmotions.size();++emotion)

@@ -5,6 +5,7 @@ base="$PWD"
 identity="${ROUND_EYES_SIGN_IDENTITY:--}"
 out="$base/../output/round-eyes-companion"
 app="$out/Round Eyes Companion.app"
+node scripts/generate-emotion-previews.mjs --check
 npm run check
 npm run build
 bash scripts/build-native.sh

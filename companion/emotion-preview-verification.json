@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-24",
+  "callable_emotions": 21,
+  "base_eye_poses": 25,
+  "display": "English enum plus Chinese label; wire payloads unchanged",
+  "preview": "Static representative SVG contours exported from the same native EyesModel/eye_poses.cc as firmware; no manual approximation",
+  "scope": [
+    "Overview table",
+    "Conversation table",
+    "Conversation result detail",
+    "Emotion codes in phase timeline",
+    "Manual selection labels and current-selection preview"
+  ],
+  "interactions": [
+    "pointerover",
+    "keyboard focus",
+    "click/tap",
+    "Escape dismissal",
+    "hide on scroll/navigation/removal"
+  ],
+  "verification": {
+    "native_catalog_current": "generation --check pass; all21 keys match protocol, two finite48point contours per eye pose",
+    "unit_suite_pass": 121,
+    "typescript": "pass",
+    "javascript_syntax": "pass",
+    "synthetic_browser": "21 distinct labels; every preview rendered2paths; Escape and keyboard focus verified",
+    "installed_browser": "21 bilingual select options; loving preview and actual happy record preview rendered",
+    "signed_package_manifest_and_native_probes": "pass",
+    "private_upgrade_snapshot": "created before stopping old bundle replacement",
+    "settings_and_vault_exact_hashes": "unchanged",
+    "ledger_counts_preserved": {
+      "turns": 198,
+      "provider_attempts": 36,
+      "model_payloads": 2
+    },
+    "device": "connected, listening, error empty"
+  },
+  "limitations": [
+    "Representative static eye geometry; device blinking, easing and long pose playlists are not animated in tooltip",
+    "Native select previews the currently selected emotion; individual OS dropdown option hover is not customized",
+    "Hover render does not send a device command or call a model"
+  ]
+}

@@ -1,10 +1,12 @@
 const $=id=>document.getElementById(id);let csrf='',state,editing=false,lastPairing='',lastError='';
-const emotions=['neutral','happy','laughing','funny','sad','angry','crying','loving','embarrassed','surprised','shocked','thinking','winking','cool','relaxed','delicious','kissy','confident','sleepy','silly','confused'];
-for(const name of emotions){const option=document.createElement('option');option.value=name;option.textContent=name;$('emotion').append(option);}
+const emotions=window.RoundEyesEmotionCatalog.items.map(item=>item.key);
+for(const name of emotions){const option=document.createElement('option');option.value=name;option.textContent=window.RoundEyesEmotionUI.format(name);$('emotion').append(option);}
 function notify(text){$('notice').textContent=text;}
 async function api(path,input){const res=await fetch('/api/'+path,input===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)});const result=await res.json();if(!res.ok)throw Error(result.error||'请求失败');return result;}
 async function run(button,action){button.disabled=true;try{await action();await refresh();}catch(e){notify(e.message);}finally{button.disabled=false;}}
 const hideSecrets=[];
+$('emotion').dataset.emotionPreview=$('emotion').value;
+$('emotion').addEventListener('change',()=>{$('emotion').dataset.emotionPreview=$('emotion').value;window.RoundEyesEmotionUI.show($('emotion'));});
 for(const provider of ['deepseek','minimax','dashscope']){
  const row=document.createElement('div');row.className='credential-row';const label=document.createElement('label');label.textContent=provider;const input=document.createElement('input');input.type='password';input.autocomplete='off';input.setAttribute('aria-label',provider+' API Key');const status=document.createElement('small');status.id=provider+'-configured';
  const eye=document.createElement('button');eye.className='quiet';eye.textContent='◉ 查看';eye.setAttribute('aria-label','查看 '+provider+' 凭证');let timer,loaded=false,generation=0;

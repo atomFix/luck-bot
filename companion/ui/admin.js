@@ -95,7 +95,7 @@
         label(t.mode),
         node("span", label(t.status), "status " + t.status),
         (t.user_text ?? "未保存 / 未识别").slice(0, 48),
-        t.emotion ?? "—",
+        window.RoundEyesEmotionUI.badge(t.emotion),
         ms(t.duration_ms),
         `${t.input_tokens ?? "?"} / ${t.output_tokens ?? "?"}`,
         t.attempts
@@ -258,14 +258,12 @@
             ? "纯表情轮次，无需文字或声音回答"
             : "没有回答 / 未保存"),
       ],
-      [
-        "表情与结果",
-        `${d.turn.emotion ?? "无"}${d.turn.hold_ms ? " · " + d.turn.hold_ms + "ms" : ""}${d.turn.error ? " · " + d.turn.error : ""}`,
-      ],
+
     ]) {
       host.append(node("h3", title), node("pre", text, "transcript"));
     }
-    host.append(node("h3", "阶段时间线"));
+    const reaction=node("div",null,"emotion-result");reaction.append(window.RoundEyesEmotionUI.badge(d.turn.emotion),node("span",`${d.turn.hold_ms?" · "+d.turn.hold_ms+"ms":""}${d.turn.error?" · "+d.turn.error:""}`));
+    host.append(node("h3","表情与结果"),reaction,node("h3", "阶段时间线"));
     const spans = node("div", null, "table-wrap");
     table(
       spans,
@@ -274,7 +272,7 @@
         s.event,
         ms(s.at_ms),
         ms(s.duration_ms),
-        s.meta?.code ??
+        window.RoundEyesEmotionUI.has(s.meta?.code)?window.RoundEyesEmotionUI.badge(s.meta.code):s.meta?.code ??
           (s.meta?.bytes != null ? s.meta.bytes + " PCM 字节" : "—"),
       ]),
     );

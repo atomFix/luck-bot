@@ -40,7 +40,7 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
     const result=await options.actions(action,b);if(action==='settings')await options.admin?.('audit',{event:'configuration.changed'});reply(200,result);return;
    }
    if(req.method!=='GET'){reply(405,{error:'method'});return;}
-   const files:Record<string,[string,string]>={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/admin.js':['admin.js','text/javascript; charset=utf-8']};
+   const files:Record<string,[string,string]>={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8'],'/admin.js':['admin.js','text/javascript; charset=utf-8'],'/emotion-catalog.js':['emotion-catalog.js','text/javascript; charset=utf-8'],'/emotions.js':['emotions.js','text/javascript; charset=utf-8']};
    const asset=files[path];if(!asset){reply(404,{error:'not_found'});return;}
    const data=await readFile((options.uiDir??fileURLToPath(new URL('../../ui/',import.meta.url)))+'/'+asset[0]);res.setHeader('Content-Type',asset[1]);res.end(data);
   }catch(error){const code=error instanceof Error&&/^[a-z_0-9]+$/.test(error.message)?error.message:'operation_failed';reply(400,{error:code});}

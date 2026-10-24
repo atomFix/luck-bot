@@ -1,8 +1,10 @@
 import {wav16k} from '../voice/utterance.js';
 import {createServer,type IncomingMessage} from 'node:http';import {readFile} from 'node:fs/promises';import {fileURLToPath} from 'node:url';import {randomBytes,timingSafeEqual} from 'node:crypto';import type {Secrets} from '../contracts.js';
 const safeEqual=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;speaker?:(op:string,input:any)=>Promise<any>;audio?:(id:string)=>Promise<{pcm:Uint8Array}|null>;admin?:(op:string,input:any)=>Promise<any>}) {
- const bootstrap=randomBytes(32).toString('hex'),session=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');const tokens=new Map([[bootstrap,Date.now()+60000]]);let url='';
+export async function startLocalServer(options:{port?:number;session?:string;secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;speaker?:(op:string,input:any)=>Promise<any>;audio?:(id:string)=>Promise<{pcm:Uint8Array}|null>;admin?:(op:string,input:any)=>Promise<any>}) {
+ if(options.port!==undefined&&(!Number.isInteger(options.port)||options.port<0||options.port>65535))throw Error('local_port');
+ if(options.session!==undefined&&!/^[a-f0-9]{64}$/.test(options.session))throw Error('session_format');
+ const bootstrap=randomBytes(32).toString('hex'),session=options.session??randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');const tokens=new Map([[bootstrap,Date.now()+60000]]);let url='';
  async function body(req:IncomingMessage){let size=0;const chunks:Buffer[]=[];for await(const b of req){size+=b.length;if(size>8192)throw new Error('body_size');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
  const server=createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
@@ -59,6 +61,6 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
   }catch(error){const code=error instanceof Error&&/^[a-z_0-9]+$/.test(error.message)?error.message:'operation_failed';reply(400,{error:code});}
  });
  server.requestTimeout=15000;server.headersTimeout=5000;server.maxHeadersCount=32;
- await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const address=server.address();if(!address||typeof address==='string')throw new Error('listen');url=`http://127.0.0.1:${address.port}`;
+ await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(options.port??0,'127.0.0.1',()=>{server.removeListener('error',reject);resolve();});});const address=server.address();if(!address||typeof address==='string')throw new Error('listen');url=`http://127.0.0.1:${address.port}`;
  return {url,bootstrap,issueBootstrap:()=>{for(const [key,until] of tokens)if(until<=Date.now())tokens.delete(key);const token=randomBytes(32).toString('hex');tokens.set(token,Date.now()+60000);while(tokens.size>8)tokens.delete(tokens.keys().next().value!);return url+'/#'+token;},close:()=>new Promise<void>((resolve,reject)=>{server.close(error=>error?reject(error):resolve());server.closeAllConnections();})};
 }

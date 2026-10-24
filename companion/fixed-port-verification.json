@@ -1,0 +1,17 @@
+{
+  "same_url": true,
+  "port": "4382",
+  "session_preserved": true,
+  "new_process": true,
+  "date": "2026-10-24",
+  "url": "http://127.0.0.1:4382/",
+  "tests_passed": 152,
+  "old_browser_tabs_closed": 2,
+  "existing_browser_tab_reused": true,
+  "auto_open_browser_on_launch": false,
+  "old_project_service_processes_found": 0,
+  "conversations_and_configuration_preserved": true,
+  "limits": [
+    "The previous in-app error preview could not be refreshed through browser automation; the existing Chrome management page was reused and verified."
+  ]
+}

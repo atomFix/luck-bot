@@ -2,7 +2,11 @@ const $=id=>document.getElementById(id);let csrf='',state,editing=false,lastPair
 const emotions=window.RoundEyesEmotionCatalog.items.map(item=>item.key);
 for(const name of emotions){const option=document.createElement('option');option.value=name;option.textContent=window.RoundEyesEmotionUI.format(name);$('emotion').append(option);}
 function notify(text){$('notice').textContent=text;}
-async function api(path,input){const res=await fetch('/api/'+path,input===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)});const result=await res.json();if(!res.ok)throw Error(result.error||'请求失败');return result;}
+async function api(path,input){const send=()=>fetch('/api/'+path,input===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)});let res=await send();
+ // A restarted fixed-port service retains the browser session but rotates CSRF.
+ // 403 is returned before actions execute, so a single retry cannot duplicate a mutation.
+ if(res.status===403&&input!==undefined&&path!=='bootstrap'){const session=await fetch('/api/session');if(session.ok){csrf=(await session.json()).csrf;res=await send();}}
+ const result=await res.json();if(!res.ok)throw Error(result.error||'请求失败');return result;}
 async function run(button,action){button.disabled=true;try{await action();await refresh();}catch(e){notify(e.message);}finally{button.disabled=false;}}
 const hideSecrets=[];
 $('emotion').dataset.emotionPreview=$('emotion').value;
@@ -31,4 +35,6 @@ $('legacy').onclick=()=>run($('legacy'),async()=>{await api('mode',{mode:'xiaozh
 $('react').onclick=()=>run($('react'),()=>api('react',{device_id:$('devices').value,emotion:$('emotion').value,hold_ms:1600,source:'manual'}));
 $('story-send').onclick=()=>run($('story-send'),async()=>{notify('正在编排故事反应…');await api('story-text',{device_id:$('devices').value,text:$('text').value});notify('组合动画已交给板子播放，不生成语音');});
 $('send').onclick=()=>run($('send'),async()=>{notify('正在理解…');const r=await api('text',{device_id:$('devices').value,text:$('text').value,speak:$('speak').checked});$('reply').textContent=r.reply;notify('本轮已完成');});
-(async()=>{try{const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);const auth=token?await api('bootstrap',{token}):await api('session');csrf=auth.csrf;notify('本机程序已就绪');await refresh();window.roundEyesApi={call:api,state:()=>state,notify,refresh};window.dispatchEvent(new Event('roundeyes:ready'));setInterval(()=>refresh().catch(()=>notify('本机程序已断开')),2000);}catch(e){notify('请从 Round Eyes Companion 程序重新打开设置：'+e.message);}})();
+let initialized=false,reconnecting=false;
+async function boot(){try{const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);const auth=token?await api('bootstrap',{token}):await api('session');csrf=auth.csrf;notify('本机程序已就绪 · 固定入口 127.0.0.1:4382');await refresh();if(!initialized){initialized=true;window.roundEyesApi={call:api,state:()=>state,notify,refresh};window.dispatchEvent(new Event('roundeyes:ready'));setInterval(()=>refresh().then(()=>{if(reconnecting){reconnecting=false;notify('已恢复连接 · 固定入口 127.0.0.1:4382');}}).catch(()=>{reconnecting=true;notify('本机程序暂时断开，正在等待恢复…');}),2000);}}catch(e){notify('请从菜单栏复制后台管理链接，粘贴到本页地址栏完成本机授权：'+e.message);}}
+window.addEventListener('hashchange',()=>{if(location.hash)void boot();});void boot();

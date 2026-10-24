@@ -1,3 +1,4 @@
+import {localSession,MANAGEMENT_PORT} from './local/session.js';
 import {LocalAsr} from './voice/local-asr.js';
 import {SpeakerExtractor} from './speaker/extractor.js';
 import {SpeakerProfiles} from './speaker/profiles.js';
@@ -42,7 +43,7 @@ async function prepareSocket(path: string) {
   if (!stale) throw new Error("daemon_running");
   await unlink(path);
 }
-export async function startCompanion(dir = DATA_DIR) {
+export async function startCompanion(dir = DATA_DIR, options:{port?:number}={}) {
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const socket = join(dir, "control.sock");
   await prepareSocket(socket);
@@ -102,7 +103,8 @@ export async function startCompanion(dir = DATA_DIR) {
     daemon.listen(socket, resolve);
   });
   await chmod(socket, 0o600);
-  local = await startLocalServer({
+  try {local = await startLocalServer({
+    port:options.port??MANAGEMENT_PORT,session:await localSession(dir),
     secretStore: secrets,
     actions: (n, b) => app.action(n, b),
     state: () => app.state(),
@@ -110,7 +112,7 @@ export async function startCompanion(dir = DATA_DIR) {
     admin: (op, input) => ledger.call(op, input),
     audio:id=>ledger.call("audio",{id}),
     speaker:(op,input)=>app.speakerAction(op,input),
-  });
+  });}catch(error){await app.close().catch(()=>{});await journal.close().catch(()=>{});await ledger.close().catch(()=>{});await new Promise<void>(resolve=>daemon.close(()=>resolve()));await unlink(socket).catch(()=>{});throw error;}
   const initial=await settings.read();
   if(initial.ambient.enabled&&initial.selected)void app.action('connect',{device_id:initial.selected,activate:true}).catch(()=>{});
   const url = local.url + "/#" + local.bootstrap;

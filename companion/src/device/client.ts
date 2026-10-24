@@ -8,17 +8,17 @@ export function connectionFailure(error:unknown):Error {
  return new Error('device_connection_failed'+(allowed.includes(code)?'_'+code.toLowerCase():''));
 }
 export class DeviceConnection extends EventEmitter implements DeviceClient {
- private seq=0;private turn=0;private closed=false;private clock:{host_ms:number;device_ms:number;rtt_ms:number};
- private pending=new Map<string,{resolve:(value:any)=>void;reject:(error:Error)=>void;cleanup:()=>void}>();
+ private seq=0;private turn=0;private wireTurn=0;private commandTail?:Promise<void>;private queuedCommands=0;private closed=false;private clock:{host_ms:number;device_ms:number;rtt_ms:number};
+ private pending=new Map<string,{resolve:(value:any)=>void;reject:(error:Error)=>void;turn:number;cleanup:()=>void}>();
  private heartbeat:ReturnType<typeof setInterval>;
- constructor(private ws:WebSocket,private state:DeviceStatus&{session_id:string;turn_seq?:number},rtt=0){super();this.turn=state.turn_seq??0;this.clock={host_ms:performance.now(),device_ms:state.uptime_ms,rtt_ms:rtt};
+ constructor(private ws:WebSocket,private state:DeviceStatus&{session_id:string;turn_seq?:number},rtt=0){super();this.turn=state.turn_seq??0;this.wireTurn=this.turn;this.clock={host_ms:performance.now(),device_ms:state.uptime_ms,rtt_ms:rtt};
   ws.on('message',(bytes,isBinary)=>{try{
    if(isBinary){const f=decodeAudio(Buffer.from(bytes as Buffer));if(f.sample_rate_khz!==16)throw new Error('format');this.emit('audio',f);return;}
    const msg=JSON.parse(bytes.toString());
-   if(msg.type==='utterance.start'){if(!Number.isInteger(msg.turn_seq)||msg.turn_seq<=this.turn)return;this.turn=msg.turn_seq;}
+   if(msg.type==='utterance.start'){if(!Number.isInteger(msg.turn_seq)||msg.turn_seq<=this.turn)return;this.turn=msg.turn_seq;this.wireTurn=msg.turn_seq;for(const [id,p] of this.pending)if(p.turn<msg.turn_seq){p.cleanup();p.reject(new Error('stale'));this.pending.delete(id);}}
    if(msg.type==='status'){
     if(msg.boot_id!==this.state.boot_id||msg.session_id!==this.state.session_id){this.close();return;}
-    this.state=msg;this.turn=Math.max(this.turn,msg.turn_seq??0);this.clock={host_ms:performance.now(),device_ms:msg.uptime_ms,rtt_ms:0};
+    this.state=msg;this.wireTurn=Math.max(this.wireTurn,msg.turn_seq??0);this.turn=Math.max(this.turn,msg.turn_seq??0);this.clock={host_ms:performance.now(),device_ms:msg.uptime_ms,rtt_ms:0};
    }
    const p=this.pending.get(msg.command_id);if(p){p.cleanup();this.pending.delete(msg.command_id);msg.type==='error'?p.reject(new Error(msg.code)):p.resolve(msg);}
    this.emit('event',msg);
@@ -32,15 +32,22 @@ export class DeviceConnection extends EventEmitter implements DeviceClient {
  close(){this.ws.close();this.disconnected();}
  private async command(type:string,payload:object,turn:number,signal?:AbortSignal):Promise<any>{
   signal?.throwIfAborted();if(this.closed)throw new Error('disconnected');if(turn<this.turn)throw new Error('stale');this.turn=turn;
+  if(this.queuedCommands>=64)throw new Error('overflow');this.queuedCommands++;
+  const send=()=>this.sendCommand(type,payload,turn,signal);const work=this.commandTail?this.commandTail.then(send):send();const tail=work.then(()=>{},()=>{});this.commandTail=tail;void tail.then(()=>{this.queuedCommands--;if(this.commandTail===tail)this.commandTail=undefined;});return work;
+ }
+ private async sendCommand(type:string,payload:object,turn:number,signal?:AbortSignal):Promise<any>{
+  signal?.throwIfAborted();if(this.closed)throw new Error('disconnected');if(type==='heartbeat'||type==='status')turn=Math.max(turn,this.wireTurn);if(turn<this.wireTurn)throw new Error('stale');this.wireTurn=turn;
   const id=crypto.randomUUID();const data={v:1,type,device_id:this.state.device_id,boot_id:this.state.boot_id,session_id:this.state.session_id,seq:++this.seq,turn_seq:turn,command_id:id,deadline_ms:toDeviceDeadline(performance.now(),this.clock,2500),payload};
   return new Promise((resolve,reject)=>{
    const done=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort);};
    const abort=()=>{done();this.pending.delete(id);reject(new Error('cancelled'));};
    const timer=setTimeout(()=>{done();this.pending.delete(id);reject(new Error('device_timeout'));},2500);
-   this.pending.set(id,{resolve,reject,cleanup:done});signal?.addEventListener('abort',abort,{once:true});
+   this.pending.set(id,{resolve,reject,turn,cleanup:done});signal?.addEventListener('abort',abort,{once:true});
    try{this.ws.send(JSON.stringify(data));}catch{abort();}
   });
  }
+ async listen(enabled:boolean,purpose:'ambient'|'enroll'='ambient'){return this.command('listen',{enabled,purpose},this.turn);}
+ async listenPose(listening:boolean){return this.command('listen_pose',{listening},this.turn);}
  async status(signal:AbortSignal):Promise<DeviceStatus>{return this.command('status',{},this.turn,signal);}
  async react(value:Reaction,turn:Turn,source:'voice'|'manual'|'agent'):Promise<Applied>{return this.command('reaction',{...parseReaction(value),source},turn.id,turn.signal);}
  async revokeController(controller_id:string):Promise<void>{if(!/^[a-f0-9]{16}$/.test(controller_id))throw new Error('controller_id');await this.command('revoke',{controller_id},this.turn);}

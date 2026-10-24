@@ -18,8 +18,8 @@ class Receiver {
 };
 class Capture {
  public:
- void Begin(uint32_t turn,bool host_endpoint=false);void Cancel();bool Feed(const int16_t* data,size_t count,PcmFrame& out,bool speaking);
+ void Begin(uint32_t turn,bool host_endpoint=false);void BeginAmbient(uint32_t stream);void Cancel();bool Feed(const int16_t* data,size_t count,PcmFrame& out,bool speaking);
  bool active()const{return active_;}uint32_t turn()const{return turn_;}
- private:bool host_endpoint_=false;bool active_=false;uint32_t turn_=0,seq_=0,samples_=0,silence_=0;bool heard_=false;
+ private:bool continuous_=false;uint32_t stream_=0;bool host_endpoint_=false;bool active_=false;uint32_t turn_=0,seq_=0,samples_=0,silence_=0;bool heard_=false;
 };
 }

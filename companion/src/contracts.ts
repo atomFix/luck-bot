@@ -4,7 +4,7 @@ export type Reaction = {emotion: Emotion; hold_ms: number};
 export type Turn = {id:number; signal:AbortSignal};
 export type Message = {role:'user'|'assistant'; content:string};
 export type Applied = {command_id:string; applied_uptime_ms:number};
-export type DeviceStatus = {device_id:string; boot_id:string; mode:'companion'|'xiaozhi'; lease:'free'|'ours'|'busy'; uptime_ms:number};
+export type DeviceStatus = {device_id:string; boot_id:string; mode:'companion'|'xiaozhi'; lease:'free'|'ours'|'busy'; uptime_ms:number; capabilities?:string[];background_active?:boolean;critical?:boolean};
 export type AudioFrame = {stream_id:number; frame_seq:number; turn_seq:number; end:boolean; sample_rate_khz:16|24; pcm:Uint8Array};
 export interface Secrets {has?(name:string):Promise<boolean>;get(name:string):Promise<string|null>;set(name:string,value:string):Promise<void>;delete(name:string):Promise<void>}
 export interface DeviceClient {

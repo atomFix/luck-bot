@@ -34,7 +34,7 @@ namespace {
 Identity identity;Pairing pairing;std::unique_ptr<Session> session;httpd_handle_t server=nullptr;
 std::recursive_mutex mu;std::atomic<bool> enabled{false},critical{false};int socket_fd=-1;
 uint32_t connected_at=0,rate_at=0,rate_count=0;Capture capture;uint32_t capture_samples=0;Receiver receiver;uint32_t playback_notified=0;uint32_t audio_rate_at=0,audio_rate_count=0;
-std::atomic<int> pending{0};bool ready=false;
+std::atomic<int> pending{0};bool ready=false;std::atomic<bool> background_active{false};Capture ambient_capture;uint32_t ambient_generation=0,pose_mode=0;
 Layers layers;std::string shown;
 struct Ack{std::string id;uint32_t at=0;};std::array<Ack,32> acks{};size_t ack_cursor=0;
 uint32_t Now(){return static_cast<uint32_t>(esp_timer_get_time()/1000);}
@@ -55,12 +55,19 @@ bool Send(std::string data,bool binary=false,std::function<void()> after={}){
 }
 void Error(const char* code,const std::string& command=""){auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","error");cJSON_AddStringToObject(o,"code",code);cJSON_AddStringToObject(o,"command_id",command.c_str());Send(Json(o));}
 void AckCommand(const std::string& id,uint32_t at,std::function<void()> after={}){auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","ack");cJSON_AddStringToObject(o,"command_id",id.c_str());cJSON_AddNumberToObject(o,"applied_uptime_ms",at);Send(Json(o),false,std::move(after));}
-void StopCapture(){capture.Cancel();Application::GetInstance().GetAudioService().EnableCompanionCapture(false);}
+void StopCapture(){capture.Cancel();if(!background_active)Application::GetInstance().GetAudioService().EnableCompanionCapture(false);}
+void StopBackground(const char* reason){if(!background_active.exchange(false))return;ambient_capture.Cancel();if(!capture.active())Application::GetInstance().GetAudioService().EnableCompanionCapture(false);auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","ambient.stopped");cJSON_AddStringToObject(o,"code",reason);Send(Json(o));pose_mode=1;round_eyes::AnimationSignals::Instance().SetCompanionPose(1,layers.ManualActive(Now()));}
+bool StartBackground(const std::string& purpose){
+ StopBackground("restart");StopCapture();ambient_generation=(ambient_generation+1)&0x7fffffffu;if(!ambient_generation)ambient_generation=1;const auto stream=ambient_generation|0x80000000u;ambient_capture.BeginAmbient(stream);background_active=true;pose_mode=1;
+ auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","ambient.start");cJSON_AddNumberToObject(o,"stream_id",stream);cJSON_AddStringToObject(o,"purpose",purpose.c_str());Send(Json(o));
+ auto& app=Application::GetInstance();app.SetDeviceState(kDeviceStateIdle);round_eyes::AnimationSignals::Instance().SetCompanionPose(1,layers.ManualActive(Now()));if(!app.GetAudioService().EnableCompanionCapture(true,true)){StopBackground("background_incompatible");return false;}return true;
+}
 void CancelAudio(){StopCapture();Application::GetInstance().GetAudioService().CancelCompanionPlayback();receiver.Reset();layers.Clear();shown.clear();auto sid=session?session->id():"";auto turn=session?session->turn():0;Application::GetInstance().Schedule([sid,turn](){std::lock_guard<std::recursive_mutex> guard(mu);if(enabled&&!critical&&(!session->Active(Now())||(session->id()==sid&&session->turn()==turn))){Application::GetInstance().SetDeviceState(kDeviceStateIdle);shown.clear();}});}
-void Drop(){CancelAudio();if(session)session->Release();int fd=socket_fd;socket_fd=-1;if(server&&fd>=0)httpd_sess_trigger_close(server,fd);}
+void Drop(){StopBackground("disconnected");CancelAudio();if(session)session->Release();int fd=socket_fd;socket_fd=-1;if(server&&fd>=0)httpd_sess_trigger_close(server,fd);}
 std::string Info(bool private_info=false){auto o=cJSON_CreateObject();cJSON_AddNumberToObject(o,"v",1);cJSON_AddStringToObject(o,"type",private_info?"status":"info");cJSON_AddStringToObject(o,"device_id",identity.device().c_str());cJSON_AddStringToObject(o,"boot_id",identity.boot().c_str());cJSON_AddNumberToObject(o,"uptime_ms",Now());cJSON_AddStringToObject(o,"mode",enabled?"companion":"xiaozhi");
- if(private_info){cJSON_AddBoolToObject(o,"capture_active",capture.active());cJSON_AddNumberToObject(o,"capture_samples",capture_samples);cJSON_AddBoolToObject(o,"input_vad",Application::GetInstance().GetAudioService().IsVoiceDetected());cJSON_AddStringToObject(o,"session_id",session->id().c_str());cJSON_AddStringToObject(o,"lease","ours");cJSON_AddNumberToObject(o,"turn_seq",session->turn());}return Json(o);}
-void UpdateLayers(){if(critical||!enabled)return;auto now=Now();std::string target=layers.Current(now);
+ auto caps=cJSON_AddArrayToObject(o,"capabilities");if(Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture())cJSON_AddItemToArray(caps,cJSON_CreateString("ambient_v1"));
+ if(private_info){cJSON_AddBoolToObject(o,"background_active",background_active);cJSON_AddBoolToObject(o,"critical",critical);cJSON_AddBoolToObject(o,"capture_active",capture.active());cJSON_AddNumberToObject(o,"capture_samples",capture_samples);cJSON_AddBoolToObject(o,"input_vad",Application::GetInstance().GetAudioService().IsVoiceDetected());cJSON_AddStringToObject(o,"session_id",session->id().c_str());cJSON_AddStringToObject(o,"lease","ours");cJSON_AddNumberToObject(o,"turn_seq",session->turn());}return Json(o);}
+void UpdateLayers(){if(critical||!enabled)return;auto now=Now();if(pose_mode)round_eyes::AnimationSignals::Instance().SetCompanionPose(pose_mode,layers.ManualActive(now));std::string target=layers.Current(now);
  if(target!=shown){shown=target;Application::GetInstance().Schedule([target](){std::lock_guard<std::recursive_mutex> lock(mu);if(!critical&&enabled&&shown==target)Board::GetInstance().GetDisplay()->SetEmotion(target.c_str());});}
 }
 void SerialWrite(cJSON* o){std::string data="REYE/1 "+Json(o)+"\n";fwrite(data.data(),1,data.size(),stdout);fflush(stdout);}
@@ -106,8 +113,10 @@ esp_err_t Ws(httpd_req_t* req){
  auto command=String(raw,"command_id");uint32_t seq,turn,deadline,version;
  if(!Number(raw,"v",version)||version!=1||String(raw,"device_id")!=identity.device()||command.empty()||command.size()>64||!Number(raw,"seq",seq)||!Number(raw,"turn_seq",turn)||!Number(raw,"deadline_ms",deadline)){Error("format",command);return ESP_OK;}
  auto payload=cJSON_GetObjectItem(raw,"payload");uint32_t hold=0;std::string emotion,source;
- Scope required=Scope::status;
+ bool listen_enabled=false,listening_pose=false;std::string purpose;Scope required=Scope::status;
  if(type=="reaction"){required=Scope::reaction;emotion=String(payload,"emotion");source=String(payload,"source");if(!Number(payload,"hold_ms",hold)||!ValidReaction(emotion.c_str(),hold)||(source!="manual"&&source!="voice"&&source!="agent")){Error("format",command);return ESP_OK;}}
+ else if(type=="listen"){required=Scope::owner;auto value=cJSON_GetObjectItemCaseSensitive(payload,"enabled");purpose=String(payload,"purpose");if(!cJSON_IsBool(value)||(cJSON_IsTrue(value)&&purpose!="ambient"&&purpose!="enroll")){Error("format",command);return ESP_OK;}listen_enabled=cJSON_IsTrue(value);}
+ else if(type=="listen_pose"){required=Scope::owner;auto value=cJSON_GetObjectItemCaseSensitive(payload,"listening");if(!cJSON_IsBool(value)){Error("format",command);return ESP_OK;}listening_pose=cJSON_IsTrue(value);}
  else if(type=="mode"||type=="revoke")required=Scope::owner;
  else if(type=="cancel")required=Scope::reaction;
  else if(type!="heartbeat"&&type!="status"&&type!="release"){Error("unsupported",command);return ESP_OK;}
@@ -120,23 +129,28 @@ esp_err_t Ws(httpd_req_t* req){
  if(type=="cancel")CancelAudio();
  if(type=="revoke"){auto id=String(payload,"controller_id");if(!identity.Revoke(id)){Error("format",command);return ESP_OK;}}
  if(type=="mode"){
-  auto mode=String(payload,"mode");if(mode!="companion"&&mode!="xiaozhi"){Error("format",command);return ESP_OK;}CancelAudio();enabled=mode=="companion";
+  auto mode=String(payload,"mode");if(mode!="companion"&&mode!="xiaozhi"){Error("format",command);return ESP_OK;}StopBackground("mode");CancelAudio();enabled=mode=="companion";pose_mode=0;round_eyes::AnimationSignals::Instance().SetCompanionPose(0,false);
   nvs_handle_t h;if(nvs_open("re_companion",NVS_READWRITE,&h)==ESP_OK){nvs_set_u8(h,"mode",enabled?1:0);nvs_commit(h);nvs_close(h);}
   Application::GetInstance().Schedule([](){auto& app=Application::GetInstance();app.EnterCompanionMode();});
  }
- auto sid=session->id();auto revoke_id=String(payload,"controller_id");Application::GetInstance().Schedule([type,command,emotion,source,hold,turn,sid,revoke_id](){
+ auto sid=session->id();auto revoke_id=String(payload,"controller_id");Application::GetInstance().Schedule([type,command,emotion,source,hold,turn,sid,revoke_id,listen_enabled,listening_pose,purpose](){
   std::lock_guard<std::recursive_mutex> guard(mu);if(!session||!session->Active(Now())||session->id()!=sid||session->turn()!=turn)return;
+  if(type=="listen"){
+   if(listen_enabled){if(!enabled||critical||!Application::GetInstance().GetAudioService().CanCompanionBackgroundCapture()){Error("background_unavailable",command);return;}if(!StartBackground(purpose)){Error("background_incompatible",command);return;}}else StopBackground("disabled");
+  }
+  if(type=="listen_pose"){pose_mode=listening_pose?2:1;if(listening_pose)layers.ClearOlder(turn+1);round_eyes::AnimationSignals::Instance().SetCompanionPose(pose_mode,layers.ManualActive(Now()));UpdateLayers();}
   if(type=="reaction"){
    if(!enabled||critical){Error("busy",command);return;}Application::GetInstance().SetDeviceState(kDeviceStateIdle);size_t rank=source=="manual"?0:source=="voice"?1:2;if(!layers.Put(rank,emotion,hold,turn,Now())){Error("busy",command);return;}
    // Set the target on the application/UI boundary before acknowledging applied.
    UpdateLayers();Board::GetInstance().GetDisplay()->SetEmotion(shown.c_str());
   }
-  auto at=Now();acks[ack_cursor++%acks.size()]={command,at};if(type=="release"||(type=="revoke"&&revoke_id==session->controller())){AckCommand(command,at,[](){CancelAudio();session->Release();});}else AckCommand(command,at);
+  auto at=Now();acks[ack_cursor++%acks.size()]={command,at};if(type=="release"||(type=="revoke"&&revoke_id==session->controller())){AckCommand(command,at,[](){StopBackground("released");CancelAudio();session->Release();});}else AckCommand(command,at);
  });return ESP_OK;
 }
 }
 bool Enabled(){return enabled.load();}
-void Critical(bool active){std::lock_guard<std::recursive_mutex> lock(mu);critical=active;layers.SetCritical(active);if(!active)shown.clear();}
+bool BackgroundActive(){return enabled.load()&&background_active.load();}
+void Critical(bool active){std::lock_guard<std::recursive_mutex> lock(mu);critical=active;if(active)StopBackground("critical");layers.SetCritical(active);if(!active)shown.clear();}
 bool ConfirmPairing(){std::lock_guard<std::recursive_mutex> lock(mu);bool waiting=pairing.Pending(Now());if(!waiting)return false;
  if(!WifiStation::GetInstance().IsConnected()||!ready){pairing.Cancel();return true;}
  if(!pairing.ConfirmBootClick(Now()))return true;
@@ -145,7 +159,7 @@ bool ConfirmPairing(){std::lock_guard<std::recursive_mutex> lock(mu);bool waitin
  }else{cJSON_AddStringToObject(o,"type","error");cJSON_AddStringToObject(o,"code","storage_full");}SerialWrite(o);
  Application::GetInstance().Schedule([](){Board::GetInstance().GetDisplay()->ShowNotification("USB pairing complete",3000);});return true;
 }
-void OnWake(){std::lock_guard<std::recursive_mutex> lock(mu);if(!enabled||!session||!session->Active(Now()))return;CancelAudio();uint32_t turn=session->BeginVoiceTurn(Now());capture.Begin(turn,true);capture_samples=0;
+void OnWake(){std::lock_guard<std::recursive_mutex> lock(mu);if(!enabled||!session||!session->Active(Now()))return;StopBackground("wake");CancelAudio();pose_mode=1;round_eyes::AnimationSignals::Instance().SetCompanionPose(1,false);uint32_t turn=session->BeginVoiceTurn(Now());capture.Begin(turn,true);capture_samples=0;
  auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","utterance.start");cJSON_AddNumberToObject(o,"turn_seq",turn);Send(Json(o));
  auto sid=session->id();
  // CancelAudio queued Idle first. Start AFE on the main loop after that cleanup,
@@ -158,8 +172,11 @@ void OnWake(){std::lock_guard<std::recursive_mutex> lock(mu);if(!enabled||!sessi
  });
 }
 bool HandleToggle(){if(!enabled)return false;std::lock_guard<std::recursive_mutex> lock(mu);if(capture.active()){StopCapture();Error("cancelled");}else OnWake();return true;}
-void OnPcm(const int16_t* data,size_t size,bool speaking){std::lock_guard<std::recursive_mutex> lock(mu);PcmFrame frame;if(!capture.Feed(data,size,frame,speaking))return;capture_samples+=size;
- if(capture_samples>=480000){StopCapture();Error("utterance_too_long");return;}
+void OnPcm(const int16_t* data,size_t size,bool speaking){std::lock_guard<std::recursive_mutex> lock(mu);PcmFrame frame;if(background_active&&ambient_capture.active()){
+ if(!session->Active(Now())||critical||!enabled){StopBackground("expired");return;}if(!ambient_capture.Feed(data,size,frame,speaking))return;if(!Send(std::string(reinterpret_cast<char*>(frame.data.data()),frame.size),true)){StopBackground("overflow");Error("overflow");}return;}
+ if(!capture.Feed(data,size,frame,speaking)){return;}
+ capture_samples+=size;
+ if(capture_samples>=1440000){StopCapture();Error("utterance_too_long");return;}
  if(!Send(std::string(reinterpret_cast<char*>(frame.data.data()),frame.size),true)){StopCapture();Error("overflow");return;}
  if(!capture.active()){Application::GetInstance().GetAudioService().EnableCompanionCapture(false);auto o=cJSON_CreateObject();cJSON_AddStringToObject(o,"type","utterance.end");cJSON_AddNumberToObject(o,"turn_seq",capture.turn());Send(Json(o));Application::GetInstance().Schedule([](){round_eyes::AnimationSignals::Instance().NotifyRecognizedText(true,Now());});}
 }

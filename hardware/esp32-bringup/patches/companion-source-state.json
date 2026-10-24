@@ -9,7 +9,7 @@
   },
   "main/application.cc": {
     "baseline": "d229bb958c34938c0d81587069378bba61fdbbee21109763356a57516d3ac16b",
-    "current": "8a170ffadab315569692f20794d794bd0a49cd4b0d0d492d59af4fa3ac32cb31"
+    "current": "a8dab67ee172c1fe49ab1b871d537e27e18395e23c7cb9407e013253f4f17d9f"
   },
   "main/application.h": {
     "baseline": "fb1d52e53cd20d89cb2bc9470105aeb834b964ce93758cebd7aac4bacab9e921",
@@ -17,11 +17,11 @@
   },
   "main/audio/audio_service.cc": {
     "baseline": "99961d387678fb8f451779469124a172073f1037a53575d1d39c32298f96858d",
-    "current": "717aa0690971cd8d327d2b6872466d40656e05561bb7c5faf13dfeadaba986a1"
+    "current": "f340798bc605a27bca24e7f58e1c3ff5e0975e1626efc60d7b63155f32b40e72"
   },
   "main/audio/audio_service.h": {
     "baseline": "36f9c7ef6f5b33d94fb355fb83e4f2f456e4bd33cbfbd6770db08ae7391ccefe",
-    "current": "6ccf8871b2dd4734811618469c41569b158e191c41ea6d50f4a0ebabc2ebc891"
+    "current": "dc84430373550bb1f01c9ef80ba744c55614b448326dcbb984411d0ce1a6dcb1"
   },
   "main/boards/bread-compact-wifi-lcd/compact_wifi_board_lcd.cc": {
     "baseline": "881824707a0c7f8c23109842fe6851ca57696f3e58c4d2a03aefd9219a3d9509",

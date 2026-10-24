@@ -1,6 +1,6 @@
 import {createServer,type IncomingMessage} from 'node:http';import {readFile} from 'node:fs/promises';import {fileURLToPath} from 'node:url';import {randomBytes,timingSafeEqual} from 'node:crypto';import type {Secrets} from '../contracts.js';
 const safeEqual=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
-export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;admin?:(op:string,input:any)=>Promise<any>}) {
+export async function startLocalServer(options:{secretStore:Secrets;actions:(name:string,input:any)=>Promise<any>;state?:()=>Promise<object>;credentialsChanged?:()=>Promise<void>;uiDir?:string;speaker?:(op:string,input:any)=>Promise<any>;admin?:(op:string,input:any)=>Promise<any>}) {
  const bootstrap=randomBytes(32).toString('hex'),session=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');const tokens=new Map([[bootstrap,Date.now()+60000]]);let url='';
  async function body(req:IncomingMessage){let size=0;const chunks:Buffer[]=[];for await(const b of req){size+=b.length;if(size>8192)throw new Error('body_size');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
  const server=createServer(async(req,res)=>{
@@ -22,6 +22,9 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
     }
     if(req.method!=='POST'||req.headers.origin!==url||req.headers['x-csrf-token']!==csrf||!req.headers['content-type']?.startsWith('application/json')){reply(403,{error:'forbidden'});return;}
     const b=await body(req);
+    if(path==='/api/speaker'){
+     if(!options.speaker||!['list','enroll-start','enroll-next','enroll-cancel','profile-remove','profile-enable','settings'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('speaker_operation');reply(200,await options.speaker(b.op,b.input));return;
+    }
     if(path==='/api/admin'){
      if(!options.admin||!['list','detail','summary','prices','savePrice','privacy','clear'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('admin_operation');reply(200,await options.admin(b.op,b.input));return;
     }

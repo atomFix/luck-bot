@@ -203,10 +203,13 @@ function execute(op, i) {
       "hold_ms",
       "error",
       "device_turn",
+      "speaker_id",
+      "speaker_name",
     ])
       if (key in i) {
         let value = i[key];
-        if (["user_text", "reply_text"].includes(key))
+        if (key === "speaker_name") value = text(value);
+        else if (["user_text", "reply_text"].includes(key))
           value = recordText() ? text(value) : null;
         else if (
           ["ended_at", "duration_ms", "hold_ms", "device_turn"].includes(key) &&

@@ -1,3 +1,5 @@
+import {SpeakerExtractor} from './speaker/extractor.js';
+import {SpeakerProfiles} from './speaker/profiles.js';
 import { Ledger } from "./ledger/repository.js";
 import { TurnJournal } from "./ledger/journal.js";
 import { createServer } from "node:http";
@@ -52,7 +54,9 @@ export async function startCompanion(dir = DATA_DIR) {
   const journal = new TurnJournal(ledger);
   const settings = new SettingsStore(dir);
   const secrets = new KeychainSecrets();
-  const app = new Companion(settings, secrets, undefined, undefined, journal);
+  const extractor=new SpeakerExtractor();
+  const profiles=new SpeakerProfiles(join(dir,'speaker-vault.json'),secrets,extractor.status.model);
+  const app = new Companion(settings, secrets, undefined, undefined, journal,{profiles,extractor});
   await app.initialize();
   let local: Awaited<ReturnType<typeof startLocalServer>> | undefined;
   const daemon = createServer(async (req, res) => {
@@ -102,7 +106,10 @@ export async function startCompanion(dir = DATA_DIR) {
     state: () => app.state(),
     credentialsChanged: () => app.resetServices(),
     admin: (op, input) => ledger.call(op, input),
+    speaker:(op,input)=>app.speakerAction(op,input),
   });
+  const initial=await settings.read();
+  if(initial.ambient.enabled&&initial.selected)void app.action('connect',{device_id:initial.selected,activate:true}).catch(()=>{});
   const url = local.url + "/#" + local.bootstrap;
   await writeFile(
     join(dir, "launch.json"),
@@ -114,7 +121,7 @@ export async function startCompanion(dir = DATA_DIR) {
     { mode: 0o600 },
   );
   const close = async () => {
-    await app.disconnect();
+    await app.close();
     await journal.close().catch(() => {});
     await ledger.close().catch(() => {});
     await local?.close();

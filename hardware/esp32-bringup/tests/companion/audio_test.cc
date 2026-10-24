@@ -23,5 +23,6 @@ int main(){using namespace companion;
  assert(!c.active());assert(DecodeAudio(f.data.data(),f.size,h)&&h.end);
  c.Begin(10,true);assert(c.Feed(loud,320,f,true));
  for(int i=0;i<300;i++){assert(c.Feed(quiet,320,f,false));assert(c.active());}
+ c.BeginAmbient(0x80000001u);for(int n=0;n<3100;n++){assert(c.Feed(quiet,320,f,false));assert(c.active());assert(DecodeAudio(f.data.data(),f.size,h));assert(h.stream_id==0x80000001u&&h.turn_seq==0&&h.frame_seq==uint32_t(n)&&!h.end);}
  c.Begin(8);c.Cancel();assert(!c.Feed(loud,320,f,true));
 }

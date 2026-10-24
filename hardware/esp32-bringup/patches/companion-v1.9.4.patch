@@ -206,7 +206,17 @@
      clock_ticks_ = 0;
      auto previous_state = device_state_;
      device_state_ = state;
-@@ -681,6 +667,7 @@
+@@ -669,8 +655,7 @@
+         case kDeviceStateIdle:
+             display->SetStatus(Lang::Strings::STANDBY);
+             display->SetEmotion("neutral");
+-            audio_service_.EnableVoiceProcessing(false);
+-            audio_service_.EnableWakeWordDetection(true);
++            if(companion::BackgroundActive()){audio_service_.EnableCompanionCapture(true,true);}else{audio_service_.EnableVoiceProcessing(false);audio_service_.EnableWakeWordDetection(true);}
+             break;
+         case kDeviceStateConnecting:
+             display->SetStatus(Lang::Strings::CONNECTING);
+@@ -681,6 +666,7 @@
              display->SetStatus(Lang::Strings::LISTENING);
              display->SetEmotion("neutral");
  
@@ -214,7 +224,7 @@
              // Make sure the audio processor is running
              if (!audio_service_.IsAudioProcessorRunning()) {
                  // Send the start listening command
-@@ -691,6 +678,11 @@
+@@ -691,6 +677,11 @@
              break;
          case kDeviceStateSpeaking:
              display->SetStatus(Lang::Strings::SPEAKING);
@@ -270,7 +280,25 @@
      while (true) {
          EventBits_t bits = xEventGroupWaitBits(event_group_, AS_EVENT_AUDIO_TESTING_RUNNING |
              AS_EVENT_WAKE_WORD_RUNNING | AS_EVENT_AUDIO_PROCESSOR_RUNNING,
-@@ -266,6 +279,12 @@
+@@ -248,6 +261,17 @@
+             }
+         }
+ 
++        // Background input fans the same raw frame to wake detection and the
++        // processed-PCM path. Equal feed sizes are negotiated before enabling.
++        if (companion_background_.load() && (bits & AS_EVENT_AUDIO_PROCESSOR_RUNNING) && (bits & AS_EVENT_WAKE_WORD_RUNNING)) {
++            std::vector<int16_t> data;const auto count=audio_processor_->GetFeedSize();
++            if (count>0 && ReadAudioData(data,16000,count)) {
++                wake_word_->Feed(data);
++                const size_t channels=codec_->input_channels();
++                if(channels>=1 && channels<=dc_blockers.size())for(size_t i=0;i<data.size();++i)data[i]=dc_blockers[i%channels].Process(data[i]);
++                audio_processor_->Feed(std::move(data));continue;
++            }
++        }
+         /* Feed the wake word */
+         if (bits & AS_EVENT_WAKE_WORD_RUNNING) {
+             std::vector<int16_t> data;
+@@ -266,6 +290,12 @@
              int samples = audio_processor_->GetFeedSize();
              if (samples > 0) {
                  if (ReadAudioData(data, 16000, samples)) {
@@ -283,7 +311,7 @@
                      audio_processor_->Feed(std::move(data));
                      continue;
                  }
-@@ -292,6 +311,11 @@
+@@ -292,6 +322,11 @@
          audio_queue_cv_.notify_all();
          lock.unlock();
  
@@ -295,7 +323,7 @@
          if (!codec_->output_enabled()) {
              esp_timer_stop(audio_power_timer_);
              esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
-@@ -301,6 +325,7 @@
+@@ -301,6 +336,7 @@
          round_eyes::AnimationSignals::Instance().PublishPlayback(task->pcm.data(), task->pcm.size(), esp_timer_get_time()/1000);
  #endif
          codec_->OutputData(task->pcm);
@@ -303,21 +331,26 @@
  
          /* Update the last output time */
          last_output_time_ = std::chrono::steady_clock::now();
-@@ -674,3 +699,31 @@
+@@ -674,3 +710,36 @@
          esp_timer_stop(audio_power_timer_);
      }
  }
 +
-+void AudioService::EnableCompanionCapture(bool enable) {
++bool AudioService::CanCompanionBackgroundCapture() {return wake_word_ && audio_processor_ && (!audio_processor_initialized_ || !wake_word_initialized_ || (wake_word_->GetFeedSize()>0 && wake_word_->GetFeedSize()==audio_processor_->GetFeedSize()));}
++bool AudioService::EnableCompanionCapture(bool enable,bool background) {
++    if(enable&&companion_capture_.load()&&companion_background_.load()==background&&IsAudioProcessorRunning()&&(!background||IsWakeWordRunning()))return true;
++    companion_background_.store(enable&&background);
 +    companion_capture_.store(enable);
 +    if (enable) {
 +        voice_detected_=false;
-+        EnableWakeWordDetection(false);
 +        EnableVoiceProcessing(true);
++        EnableWakeWordDetection(background);
++        if(background&&(!wake_word_initialized_||!audio_processor_initialized_||!IsWakeWordRunning()||wake_word_->GetFeedSize()!=audio_processor_->GetFeedSize())){companion_capture_=false;companion_background_=false;EnableVoiceProcessing(false);EnableWakeWordDetection(true);return false;}
 +    } else {
 +        EnableVoiceProcessing(false);
 +        EnableWakeWordDetection(true);
 +    }
++    return true;
 +}
 +bool AudioService::PushCompanionPcm(const uint8_t* data, size_t bytes, uint32_t turn, bool end) {
 +    if (!turn || bytes > 960 || bytes % 2) return false;
@@ -355,17 +388,19 @@
  };
  
  struct DebugStatistics {
-@@ -106,8 +110,13 @@
+@@ -106,8 +110,15 @@
      void PlaySound(const std::string_view& sound);
      bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
      void ResetDecoder();
-+    void EnableCompanionCapture(bool enable);
++    bool EnableCompanionCapture(bool enable,bool background=false);
++    bool CanCompanionBackgroundCapture();
 +    bool PushCompanionPcm(const uint8_t* data, size_t bytes, uint32_t turn, bool end = false);
 +    void CancelCompanionPlayback();
  
  private:
 +    std::atomic<uint32_t> companion_generation_{0};
 +    std::atomic<bool> companion_capture_{false};
++    std::atomic<bool> companion_background_{false};
      AudioCodec* codec_ = nullptr;
      AudioServiceCallbacks callbacks_;
      std::unique_ptr<AudioProcessor> audio_processor_;

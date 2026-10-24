@@ -39,6 +39,8 @@ SignalSnapshot AnimationSignals::Read(uint64_t now)const{
  }
  if((state&32)&&static_cast<uint32_t>(now)-wake_at_.load()<300)b=Behavior::Waking;
  if(state&16)b=Behavior::Waiting;
+ const auto control=companion_pose_.load();
+ if(!critical&&(control&3)){if(control&4)b=Behavior::Idle;else if((control&3)==2)b=Behavior::Listening;else if(b!=Behavior::Speaking)b=Behavior::Idle;}
  float energy=0;
  if(input==InputState::Speaking&&(audio&0xffff0000u)==(state&0xffff0000u)&&static_cast<uint32_t>(now)-at<160)energy=(audio&65535)/65535.f;
  const uint32_t age=static_cast<uint32_t>(now)-at;

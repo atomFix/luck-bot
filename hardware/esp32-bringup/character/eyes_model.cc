@@ -20,12 +20,12 @@ Frame EyesModel::Tick(uint64_t now) {
     const auto& list=kEmotions[emotion_];
     uint8_t selected=list.ids[(age/5200)%list.count];
     if(emotion_==0){
-        selected=age%12000>=10800?6:0;
-        if(behavior_==Behavior::Listening){static constexpr uint8_t ids[]={10,1,19};selected=ids[(age/5200)%3];}
+        selected=0;
         if(behavior_==Behavior::Waiting)selected=(age/5200)%2?14:8;
         if(behavior_==Behavior::Reconnecting)selected=(age/5200)%2?9:12;
         if(behavior_==Behavior::Waking)selected=1;
     }
+    if(behavior_==Behavior::Listening)selected=10;
     pose_=forced_.value_or(selected);
     Pose target=GetPose(pose_);
     if(!started_){started_=true;last_=now;blink_at_=now+3500;}

@@ -14,6 +14,10 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/app/dist/build/native" "$app/Contents/Resources/app/dist/ui"
 swiftc -target arm64-apple-macos14.0 -parse-as-library -O native/Launcher.swift -o "$app/Contents/MacOS/RoundEyesCompanion"
 cp -L "$(command -v node)" "$app/Contents/Resources/node"
+node scripts/fetch-speaker-model.mjs
+mkdir -p "$app/Contents/Resources/app/dist/config" "$app/Contents/Resources/app/dist/models"
+cp config/speaker-model.json "$app/Contents/Resources/app/dist/config/"
+cp models/campplus-zh.onnx "$app/Contents/Resources/app/dist/models/"
 cp -R dist/src "$app/Contents/Resources/app/dist/"
 cp -R build/native/credentials build/native/audio-output build/native/serial-pair "$app/Contents/Resources/app/dist/build/native/"
 cp -R ui/. "$app/Contents/Resources/app/dist/ui/"
@@ -22,6 +26,7 @@ cp scripts/delete-credentials.mjs "$app/Contents/Resources/"
 cp scripts/verify-bundle.mjs "$app/Contents/Resources/"
 cp -R skill config "$app/Contents/Resources/"
 mkdir -p "$app/Contents/Resources/ThirdParty-Licenses"
+cp "$base/../third_party/3d-speaker-LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/"
 cp "$base/../third_party/silero-vad-LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/"
 (cd "$app/Contents/Resources/app" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
 # The app targets this Mac's arm64 platform; retain only its ONNX native runtime.
@@ -30,6 +35,11 @@ rm -rf "$ort_bins/linux" "$ort_bins/win32" "$ort_bins/darwin/x64"
 for file in "$ort_bins/darwin/arm64/"*.node "$ort_bins/darwin/arm64/"*.dylib; do
  [[ ! -f "$file" ]] || codesign --force --sign "$identity" "$file"
 done
+sherpa_bins="$app/Contents/Resources/app/node_modules/sherpa-onnx-darwin-arm64"
+for file in "$sherpa_bins/"*.node "$sherpa_bins/"*.dylib; do
+ [[ ! -f "$file" ]] || codesign --force --sign "$identity" "$file"
+done
+cp "$base/../third_party/sherpa-onnx-LICENSE" "$app/Contents/Resources/ThirdParty-Licenses/sherpa-onnx-LICENSE"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.roundeyes.companion</string><key>CFBundleName</key><string>Round Eyes Companion</string><key>CFBundleExecutable</key><string>RoundEyesCompanion</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>CFBundleVersion</key><string>1</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>LSUIElement</key><true/><key>NSLocalNetworkUsageDescription</key><string>连接同一局域网中的 ESP32 圆眼设备，用于表情控制与语音交互。</string><key>NSBonjourServices</key><array><string>_roundeyes._tcp</string></array></dict></plist>
 PLIST
@@ -48,6 +58,7 @@ codesign --force --sign "$identity" "$app"
 codesign --verify --deep --strict "$app"
 "$app/Contents/Resources/node" scripts/verify-bundle.mjs "$app"
 node scripts/verify-sqlite-runtime.mjs "$app"
+node scripts/verify-speaker-runtime.mjs "$app"
 cp scripts/install.sh scripts/uninstall.sh "$out/"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$out/RoundEyesCompanion-macos-arm64.zip"
 shasum -a 256 "$out/RoundEyesCompanion-macos-arm64.zip" > "$out/SHA256SUMS"

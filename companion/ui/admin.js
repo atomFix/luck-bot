@@ -342,6 +342,29 @@
       ]),
     );
   }
+  const speaker = (op, input = {}) => api.call("speaker", {op,input});
+  const speakerLabels={disabled:"后台已关闭",paused:"已暂停",starting:"启动中",listening:"持续聆听中",enrolling:"声纹录入中",fault:"需要处理",no_profiles:"请先录入声纹",unavailable:"组件不可用"};
+  let speakerLoading=false, speakerInitialized=false;
+  async function speakers(){
+    if(speakerLoading)return;speakerLoading=true;
+    try{const value=await speaker("list");
+      $("speaker-state").textContent=speakerLabels[value.state]??value.state;
+      $("speaker-status").textContent=`本地模型：${value.model.ready?"已就绪":"待加载"} · 启用档案 ${value.profile_count} 人 · 本次检测 ${value.local_utterances} 句`+(value.error?" · "+value.error:"")+(value.last_event?" · 最近结果："+value.last_event:"");
+      const host=$("speaker-profiles");host.replaceChildren();
+      if(!value.profiles.length)host.append(node("p","还没有声纹档案。完成下方三段录入后即可启用。","muted"));
+      for(const person of value.profiles){const row=node("div",null,"row"),check=node("input");check.type="checkbox";check.checked=person.enabled;check.setAttribute("aria-label","启用 "+person.name);check.onchange=()=>speakerRun(check,()=>speaker("profile-enable",{id:person.id,enabled:check.checked}));const remove=node("button","删除","quiet");remove.onclick=()=>{if(confirm("删除声纹档案“"+person.name+"”？"))void speakerRun(remove,()=>speaker("profile-remove",{id:person.id}));};row.append(check,node("strong",person.name),node("small",person.id),remove);host.append(row);}
+      const e=value.enrollment,active=e&&!['complete'].includes(e.state);
+      $("speaker-enroll").disabled=!!active;$("speaker-name").disabled=!!active;$("speaker-cancel").hidden=!active;$("speaker-next").hidden=!e||!['next_sample','failed'].includes(e.state);
+      $("speaker-next").textContent=e?.state==='failed'?"重试这一段":"开始下一段";
+      $("speaker-enrollment").textContent=!e?"准备好后开始第一段。":e.state==='recording'?`第 ${e.samples+1}/3 段：请自然说话，还剩 ${Math.max(0,Math.ceil((e.until-Date.now())/1000))} 秒`:e.state==='analyzing'?"正在本地检查音量与声纹…":e.state==='complete'?"三段录入完成，声纹已保存。":e.state==='failed'?"这一段未通过："+e.error+"。请调整距离后重试。":`已完成 ${e.samples}/3 段，请开始下一段。`;
+      if(!speakerInitialized){const cfg=api.state().settings.ambient;$("ambient-enabled").checked=cfg.enabled;$("ambient-wait").value=cfg.wait_seconds;$("ambient-silence").value=cfg.silence_ms;$("ambient-threshold").value=cfg.threshold;$("ambient-margin").value=cfg.margin;speakerInitialized=true;}
+    }finally{speakerLoading=false;}
+  }
+  async function speakerRun(button,fn){button.disabled=true;try{await fn();await api.refresh();await speakers();}catch(e){fail(e);}finally{button.disabled=false;}}
+  $("speaker-enroll").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-start",{name:$("speaker-name").value.trim(),enable_after:$("speaker-enable-after").checked}));
+  $("speaker-next").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-next"));
+  $("speaker-cancel").onclick=e=>speakerRun(e.currentTarget,()=>speaker("enroll-cancel"));
+  $("speaker-settings").onsubmit=e=>{e.preventDefault();void speakerRun(e.submitter,()=>speaker("settings",{enabled:$("ambient-enabled").checked,wait_seconds:Number($("ambient-wait").value),silence_ms:Number($("ambient-silence").value),threshold:Number($("ambient-threshold").value),margin:Number($("ambient-margin").value)}));};
   async function show(name, load = true) {
     if (!titles[name]) return;
     page = name;
@@ -364,6 +387,7 @@
       if (name === "overview") await overview();
       if (name === "conversations") await conversations();
       if (name === "usage") await usage();
+      if (name === "speakers") {speakerInitialized=false;await speakers();}
       if (name === "settings")
         $("record-text").checked = (await admin("privacy")).record_text;
     } catch (e) {
@@ -451,6 +475,7 @@
   window.addEventListener("roundeyes:ready", () => {
     api = window.roundEyesApi;
     void show(page);
+    setInterval(()=>{if(page==="speakers")void speakers().catch(fail);},1000);
     setInterval(() => {
       health();
       if (page === "overview") void overview().catch(fail);

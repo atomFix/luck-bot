@@ -18,4 +18,5 @@ int main(){AnimationSignals s;s.PublishDeviceState(InputState::Listening,0);asse
  assert(s.Read(220).behavior==Behavior::Waking);assert(s.Read(520).behavior==Behavior::Listening);
  s.PublishDeviceState(InputState::Idle,600);s.PublishDeviceState(InputState::Connecting,620);
  assert(s.Read(620).critical);assert(!s.Read(2120).critical&&s.Read(2120).behavior==Behavior::Reconnecting);
+ s.PublishDeviceState(InputState::Idle,3000);s.SetCompanionPose(2,false);assert(s.Read(3100).behavior==Behavior::Listening);s.SetCompanionPose(1,false);assert(s.Read(3101).behavior==Behavior::Idle);s.SetCompanionPose(2,true);assert(s.Read(3102).behavior==Behavior::Idle);s.PublishDeviceState(InputState::Upgrading,3103);assert(s.Read(3103).critical);
  puts("PASS signals: STT waiting, actual PCM start, interrupt, expiry, silence, critical states");}

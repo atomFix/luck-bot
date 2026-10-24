@@ -44,7 +44,7 @@ export class VoicePipeline {
   clearSpeaker(id: string) {
     this.speakerHistory.delete(id);
   }
-  async expression(pcm: Uint8Array, id: number, speaker: string) {
+  async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>) {
     const turn = await this.begin(id);
     const t = performance.now();
     const text = await this.options.asr.transcribe(wav16k(pcm), turn.signal);
@@ -60,17 +60,22 @@ export class VoicePipeline {
       this.speakerHistory.set(speaker, history);
     }
     const start = performance.now();
-    const reaction = await this.options.brain.reaction(
+    const predicted = await this.options.brain.reaction(
       text,
       history.snapshot(),
       turn.signal,
     );
+    const reaction={...predicted,hold_ms:Math.max(2500,predicted.hold_ms)};
     this.check(turn);
     this.event("reaction.ready", turn, start);
     currentJournal()?.patch({
       emotion: reaction.emotion,
       hold_ms: reaction.hold_ms,
     });
+    const waiting=performance.now();
+    await beforeApply?.(turn.signal);
+    this.check(turn);
+    if(performance.now()-waiting>=1)this.event("reaction.display_wait",turn,waiting);
     const applied = performance.now();
     await this.options.device.react(reaction, turn, "voice");
     this.check(turn);

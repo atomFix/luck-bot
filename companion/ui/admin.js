@@ -46,7 +46,7 @@
   const date = (v) =>
     v == null ? "—" : new Date(v).toLocaleString("zh-CN", { hour12: false });
   const label = (v) => labels[v] ?? v ?? "—";
-  const reasonLabels={provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
+  const reasonLabels={listening_started:"音频流已启动",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
   const reasonText=code=>code?(reasonLabels[code]??`其他原因（${code}）`):"—";
 
   const today = () => {
@@ -404,6 +404,18 @@
       $("speaker-state").textContent=speakerLabels[value.state]??value.state;
       $("speaker-description").textContent=value.speaker_filter?"声纹筛选开启：已录入的人普通说话时只回应表情，说‘你好小智’或按 BOOT 才语音聊天。未匹配的声音在本地忽略。":"声纹筛选关闭：任何人的普通说话都可触发表情理解，说‘你好小智’或按 BOOT 才语音聊天。声纹档案保留。";
       $("speaker-status").textContent=(value.speaker_filter?"仅接受已录入声纹":"声纹筛选关闭 · 接受所有说话人")+` · 本地模型：${value.model.ready?"已就绪":"待加载"} · 启用档案 ${value.profile_count} 人 · 本次检测 ${value.local_utterances} 句`+(value.error?" · "+value.error:"")+(value.last_event?" · 最近结果："+reasonText(value.last_event):"");
+      const diagnostics=$("listening-diagnostics"), input=value.input;
+      if(input){
+        const stage=({idle:"等待说话",listening:"正在听你说话",checking:"检查语音",recognizing:"正在识别",responding:"理解并反馈"})[value.work_stage]??value.work_stage;
+        const stale=value.streaming&&(input.last_frame_age_ms==null||input.last_frame_age_ms>2000);
+        diagnostics.replaceChildren();
+        const volume=node("div"), meter=node("meter");meter.min=0;meter.max=32768;meter.value=input.rms;meter.setAttribute("aria-label","麦克风音量 RMS");
+        volume.append(node("small","麦克风音量"),meter,node("span",`RMS ${input.rms} · 峰值 ${input.peak}`));
+        const stream=node("div");stream.append(node("small","音频接收"),node("strong",!value.streaming?"已暂停":stale?"等待音频帧":"音频正在到达"),node("span",`${(input.audio_ms/1000).toFixed(1)} 秒 · ${input.received_frames} 帧`));
+        const detection=node("div");detection.append(node("small","人声检测与处理"),node("strong",value.streaming?stage:"已暂停"),node("span",`当前人声概率 ${Math.round((input.last_probability??0)*100)}% · 开口门槛 60%`));
+        diagnostics.append(volume,stream,detection);
+        if(stale)$("speaker-state").textContent="等待音频输入";
+      }
       const host = $("speaker-profiles"), snapshot = JSON.stringify(value.profiles);
       if (snapshot !== profileSnapshot) {
         host.replaceChildren();

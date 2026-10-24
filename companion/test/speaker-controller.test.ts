@@ -44,3 +44,19 @@ test('sentence end shows thinking before releasing listening and rejected speech
  assert(thought>=0);assert(release>thought);assert(f.commands.some(c=>c.thinking===false));assert.equal(f.calls(),0);
  }finally{await f.controller.pause();}
 });
+
+test('live input diagnostics distinguish arriving PCM, voice probability and a stale stream without saving audio',async()=>{
+ const f=fixture();f.setFilter(false);try{
+  await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});
+  assert.equal(f.controller.status.input.last_frame_age_ms,null);
+  for(let i=0;i<20;i++){const frame=f.frame();const pcm=Buffer.from(frame.pcm);for(let j=0;j<320;j++)pcm.writeInt16LE(500,j*2);frame.pcm=pcm;await f.controller.consume(frame);}
+  const value=f.controller.status;assert.equal(value.input.received_frames,20);assert.equal(value.input.audio_ms,400);assert.equal(value.input.rms,500);assert.equal(value.input.peak,500);assert.equal(value.input.last_probability,.9);assert.equal(value.work_stage,'listening');assert.equal(value.input.last_frame_age_ms,0);
+  f.setClock(13000);assert.equal(f.controller.status.input.last_frame_age_ms,3000);
+  f.setProbability(.01);for(let i=0;i<70;i++)await f.controller.consume(f.frame());await f.controller.drain();assert.equal(f.controller.status.work_stage,'idle');
+ }finally{await f.controller.pause();assert.equal(f.controller.status.input.received_frames,0);}
+});
+
+test('punctuation-only local ASR is recorded as no speech and never triggers expression or cloud work',async()=>{
+ const local={ready:async()=>{},start:async()=>1,push:async()=>{},finish:async()=>({text:'。？！',model:'fixture',cpu_ms:1,finalize_ms:1}),cancel:()=>{}};
+ const f=fixture(local);f.setFilter(false);try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});await phrase(f);assert.equal(f.calls(),0);assert.equal(f.controller.status.last_event,'no_speech');}finally{await f.controller.pause();}
+});

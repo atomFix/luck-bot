@@ -52,15 +52,25 @@ export function animationReplacementDelay(plan:AnimationPlan,elapsed:number):num
  return 0;
 }
 // Whole-phrase repair/acknowledgement; stories and mixed meanings still go to the model.
-export function conversationalAnimation(text:string,current?:string):AnimationPlan|null {
- const t=text.replace(/[\s，,。.!！?？、]/gu,'');
+export function conversationalAnimation(text:string,current?:string,lastEmotion?:string):AnimationPlan|null {
+ const t=text.replace(/[\s，,。.!！?？、]/gu,'').replace(/^(?:嗯|呃|啊)+/u,'');
+ if((!t&&/[\p{L}\p{N}]/u.test(text))||/^(?:哦+|好|好的|好吧|这样啊|知道了)$/.test(t)){
+  const emotion=EMOTIONS.find(e=>e===current)??'neutral';
+  return AnimationSchema.parse({scene:'acknowledge',steps:[step(emotion,2600,{blink_once:true,transition_ms:650})]});
+ }
+ if(t!=='换'&&/^(?:(?:你这|这|你现在)(?:是)?(?:什么|啥)表情)?(?:你)?(?:再|请|给我|先)?换(?:一下|一个|个)?(?:其他|别的|新的|不同的)?(?:的)?(?:表情|眼神)?(?:吧|呀)?$/.test(t)){
+  const choices:Emotion[]=['thinking','cool','surprised','confident','embarrassed','winking'];
+  const last=EMOTIONS.find(e=>e===(lastEmotion??current));const index=last?choices.indexOf(last):-1;
+  const emotion=choices[(index+1)%choices.length]!;
+  return AnimationSchema.parse({scene:'requested_change',steps:[step(emotion,3600,{transition_ms:700,look_x:emotion==='thinking'?.3:0})]});
+ }
  if(/^(?:你)?(?:现在|刚才)?(?:是)?(?:什么|啥)(?:表情|眼神)(?:啊|呀)?$/.test(t)){
   const emotion=EMOTIONS.find(e=>e===current)??'neutral';
   return AnimationSchema.parse({scene:'acknowledge',steps:[step(emotion,3000,{blink_once:true,transition_ms:650})]});
  }
- if(/^(?:你)?(?:现在)?(?:能|可以)?听(?:到|见|清)(?:我)?(?:说话|说什么|说什么东西)?(?:吗|么|了|了吗)?$/.test(t))
-  return AnimationSchema.parse({scene:'acknowledge',steps:[step('neutral',3000,{blink_once:true,transition_ms:650})]});
- if(/^(?:你|你们)?(?:怎么|是不是)?(?:又|都|总是|一直)?(?:乱回|没听懂|听不懂|理解错了)(?:了|啊|呀|我的意思)?$/.test(t)||/^(?:我刚才说的不是这个意思|不是这个意思|别乱回了|你别乱笑|认真听我说)$/.test(t))
+ if(/^(?:你)?(?:现在)?(?:还)?(?:能|可以)?听(?:到|见|清)(?:我)?(?:说话|讲话|说什么|说什么东西)?(?:吗|么|了|了吗)?$/.test(t))
+  return AnimationSchema.parse({scene:'acknowledge',steps:[step('neutral',3000,{blink_once:true,scale:1.12,look_y:-.3,transition_ms:650})]});
+ if(/^(?:你)?(?:先|再)?(?:别|不要)(?:老是|一直|总是)?笑(?:了)?$/.test(t)||/^(?:你|你们)?(?:怎么|是不是)?(?:又|都|总是|一直)?(?:乱回|没听懂|听不懂|理解错了)(?:了|啊|呀|我的意思)?$/.test(t)||/^(?:我刚才说的不是这个意思|不是这个意思|别乱回了|你别乱笑|认真听我说)$/.test(t))
   return AnimationSchema.parse({scene:'repair',steps:[step('thinking',4000,{scale:1,look_x:0,blink:.6,transition_ms:800})]});
  return null;
 }

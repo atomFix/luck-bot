@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-24",
+  "finding": "Later spoken phrases were recognized and applied; neutral preambles and subtle feedback made reception difficult to perceive. No persistent capture dropout reproduced during the observed minute.",
+  "changes": [
+    "Visible local hearing acknowledgement",
+    "Immediate local expression change without neutral prelude",
+    "Fillers preserve current attitude rather than acquire unrelated scenes",
+    "Punctuation-only ASR is ignored before expression/cloud processing",
+    "Live microphone level, received audio, speech probability and processing stage in management UI"
+  ],
+  "checks": {
+    "typescript_tests": 160,
+    "typescript_check": true,
+    "signed_app_install": true,
+    "firmware_reflash": false,
+    "operator_feedback": "持续有回应",
+    "viewport_widths": [
+      390,
+      2560
+    ]
+  },
+  "live_observation": {
+    "samples": 30,
+    "duration_seconds": 58,
+    "all_connected": true,
+    "received_frames_first": 4704,
+    "received_frames_last": 7608,
+    "speech_starts_first": 0,
+    "speech_starts_last": 13,
+    "last_frame_age_max_ms": 95,
+    "errors": []
+  },
+  "limits": [
+    "Input-frame freshness was sampled every two seconds; this does not prove absence of every brief transport gap.",
+    "No persistent microphone dropout was reproduced; future reports can be distinguished using the new live input diagnostics."
+  ]
+}

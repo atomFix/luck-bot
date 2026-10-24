@@ -59,6 +59,7 @@ export class SpeechEndpoint {
   private ended = false;
   private speechAt = 0;
   private maxProbability = 0;
+  private lastProbability = 0;
   private positiveFrames = 0;
   constructor(
     private scorer: SpeechScorer = new SileroScorer(),
@@ -76,6 +77,7 @@ export class SpeechEndpoint {
   get stats() {
     return {
       max_probability: this.maxProbability,
+      last_probability: this.lastProbability,
       voiced_ms: this.positiveFrames * 96,
       processed_ms: Math.round(this.samples / 16),
     };
@@ -92,6 +94,7 @@ export class SpeechEndpoint {
         const p = await this.scorer.score(this.frame);
         if (!Number.isFinite(p) || p < 0 || p > 1)
           throw new Error("vad_unavailable");
+        this.lastProbability = p;
         this.maxProbability = Math.max(this.maxProbability, p);
         if (p >= 0.6) this.positiveFrames++;
         this.positive = p >= 0.6 ? this.positive + 1 : 0;

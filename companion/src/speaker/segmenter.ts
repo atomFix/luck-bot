@@ -31,6 +31,7 @@ export class AmbientSegmenter {
       maxSpeechMs: this.dropping||this.windowMs>0?Number.MAX_SAFE_INTEGER:29500,
     });
   }
+  get stats(){return {...this.endpoint.stats,active:this.active,buffer_ms:this.bytes/32};}
   start(stream: number) {
     if (!Number.isInteger(stream) || stream < 1)
       throw new Error("audio_stream");

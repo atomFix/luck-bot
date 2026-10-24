@@ -123,7 +123,7 @@ export class VoicePipeline {
     if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(12,6000);this.speakerHistory.set(speaker,history);}
     const position=previous?animationPosition(previous.plan,Math.round(performance.now()-previous.at)):undefined;
     const requested=requestedExpression(text);
-    const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral');
+    const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral',previous?primaryEmotion(previous.plan):undefined);
     const quick=requested??(local?.fast?localReaction(text,history.snapshot()):null);
     const context=history.snapshot();
     if(position)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(position)});

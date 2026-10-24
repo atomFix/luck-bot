@@ -30,6 +30,7 @@
   const titles = {
     overview: ["运行概览", "对话、反应和每次调用，都有迹可循。"],
     conversations: ["对话记录", "从听见一句话，到它作出的每一个回应。"],
+    expressions: ["表情概览", "认识它的每一个眼神，以及串成故事的回应。"],
     usage: ["用量与费用", "按请求追查用量，按来源区分费用。"],
     speakers: ["声纹与聆听", "自由交流，或只回应熟悉的人。"],
     settings: ["设备与配置", "管理连接、模型服务与本机数据。"],
@@ -425,6 +426,87 @@
   const updateFilterControls=()=>{const enabled=$("speaker-filter").checked;$("ambient-threshold").disabled=!enabled;$("ambient-margin").disabled=!enabled;};
   $("speaker-filter").addEventListener("change",updateFilterControls);
   $("speaker-settings").onsubmit=e=>{e.preventDefault();void speakerRun(e.submitter,()=>speaker("settings",{enabled:$("ambient-enabled").checked,speaker_filter:$("speaker-filter").checked,wait_seconds:Number($("ambient-wait").value),silence_ms:Number($("ambient-silence").value),threshold:Number($("ambient-threshold").value),margin:Number($("ambient-margin").value)}));};
+  let expressionsBuilt = false, seriesLoaded = false, seriesLoading = false;
+  function expressionPlayButton(label, action) {
+    const button = node("button", "在板子上播放", "quiet");
+    button.setAttribute("aria-label", "在板子上播放：" + label);
+    button.onclick = async () => {
+      button.disabled = true;
+      try { await action(); api.notify("已播放：" + label); }
+      catch (error) { fail(error); }
+      finally { button.disabled = false; }
+    };
+    return button;
+  }
+  function expressions() {
+    if (expressionsBuilt) return;
+    const items = window.RoundEyesEmotionCatalog.items;
+    $("expressions-single-tab").textContent = `单表情（${items.length}）`;
+    $("expressions-single-summary").textContent = `${items.length} 种可调用表情。每张卡展示代表眼型，可预览眨眼或发送到圆屏。`;
+    for (const item of items) {
+      const card = node("article", null, "expression-card single-expression");
+      card.append(node("h2", item.zh), node("span", item.key, "expression-key"));
+      card.append(window.RoundEyesEmotionUI.animation({steps: [{emotion: item.key, duration_ms: 3600, scale: 1, shake: 0, blink: 2, transition_ms: 300}]}));
+      card.append(expressionPlayButton(window.RoundEyesEmotionUI.format(item.key), () => api.call("react", {emotion: item.key, hold_ms: 1600, source: "manual"})));
+      $("expressions-single-grid").append(card);
+    }
+    expressionsBuilt = true;
+  }
+  async function expressionSeries() {
+    if (seriesLoaded || seriesLoading) return;
+    seriesLoading = true;
+    const host = $("expressions-series-grid");
+    host.replaceChildren(node("p", "正在加载系列表情…", "muted"));
+    try {
+      const presets = await api.call("animation-presets", {});
+      host.replaceChildren();
+      $("expressions-series-tab").textContent = `系列表情（${presets.length}）`;
+      for (const preset of presets) {
+        const card = node("article", null, "expression-card series-expression");
+        const total = preset.plan.steps.reduce((sum, step) => sum + step.duration_ms, 0);
+        const heading = node("div", null, "section-title");
+        heading.append(node("h2", preset.label), node("span", `${preset.plan.steps.length} 步 · ${(total / 1000).toFixed(1)} 秒`, "pill"));
+        card.append(heading, node("span", preset.id, "expression-key"), window.RoundEyesEmotionUI.animation(preset.plan));
+        const details = node("details");
+        details.append(node("summary", "查看动画步骤"));
+        const steps = node("ol", null, "expression-steps");
+        for (const step of preset.plan.steps) {
+          const row = node("li");
+          row.append(window.RoundEyesEmotionUI.badge(step.emotion), node("span", `${(step.duration_ms / 1000).toFixed(1)} 秒`, "muted"));
+          steps.append(row);
+        }
+        details.append(steps);
+        card.append(expressionPlayButton(preset.label, () => api.call("animation", {preset: preset.id})), details);
+        host.append(card);
+      }
+      if (!presets.length) host.append(node("p", "暂无系列表情", "muted"));
+      seriesLoaded = true;
+    } catch (error) {
+      const retry = node("button", "重新加载", "quiet");
+      retry.onclick = () => void expressionSeries();
+      host.replaceChildren(node("p", "系列表情加载失败：" + error.message, "muted"), retry);
+    } finally { seriesLoading = false; }
+  }
+  function selectExpressionKind(kind, focus = false) {
+    document.querySelectorAll("[data-expression-kind]").forEach(button => {
+      const selected = button.dataset.expressionKind === kind;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      if (selected && focus) button.focus();
+    });
+    $("expressions-single").hidden = kind !== "single";
+    $("expressions-series").hidden = kind !== "series";
+    if (kind === "series") void expressionSeries();
+  }
+  document.querySelectorAll("[data-expression-kind]").forEach(button => {
+    button.onclick = () => selectExpressionKind(button.dataset.expressionKind);
+    button.onkeydown = event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const kind = event.key === "Home" ? "single" : event.key === "End" ? "series" : button.dataset.expressionKind === "single" ? "series" : "single";
+      selectExpressionKind(kind, true);
+    };
+  });
   async function show(name, load = true) {
     if (!titles[name]) return;
     page = name;
@@ -446,6 +528,7 @@
       health();
       if (name === "overview") await overview();
       if (name === "conversations") await conversations();
+      if (name === "expressions") expressions();
       if (name === "usage") await usage();
       if (name === "speakers") {speakerInitialized=false;await speakers();}
       if (name === "settings"){

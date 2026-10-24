@@ -32,7 +32,7 @@
   new MutationObserver(()=>{if(anchor&&!anchor.isConnected)hide();}).observe(document.documentElement,{childList:true,subtree:true});
   function animation(plan){
     const host=document.createElement('div');host.className='animation-preview';
-    const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 240 240');svg.setAttribute('aria-label','组合动画编排预览');svg.setAttribute('role','img');svg.style.width='180px';
+    const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 240 240');svg.setAttribute('aria-label',plan.steps.length===1?format(plan.steps[0].emotion)+'眼型预览':'组合动画编排预览');svg.setAttribute('role','img');svg.style.width='180px';
     const face=document.createElementNS(ns,'circle');for(const [k,v]of Object.entries({cx:120,cy:120,r:119,fill:'#000'}))face.setAttribute(k,v);svg.append(face);
     const paths=[0,1].map(()=>{const p=document.createElementNS(ns,'path');p.setAttribute('fill','#fff');svg.append(p);return p;});
     const readout=document.createElement('p'),button=document.createElement('button'),hint=document.createElement('small');button.textContent='预览动画';hint.textContent='编排示意 · 真实过渡与帧率以圆屏为准';host.append(svg,readout,button,hint);
@@ -50,7 +50,7 @@
       readout.textContent=`第 ${index+1} / ${plan.steps.length} 步 · ${format(step.emotion)} · ${(elapsed/1000).toFixed(1)} / ${(total/1000).toFixed(1)} 秒`;
     };
     draw(0,1000);button.onclick=()=>{if(running){running=false;button.textContent='重新预览';return;}running=true;start=performance.now();points=undefined;let previous=start;button.textContent='停止预览';
-      const tick=now=>{if(!running||!host.isConnected){running=false;return;}const elapsed=Math.min(total-1,now-start);draw(elapsed,Math.min(100,now-previous));previous=now;if(now-start>=total){running=false;button.textContent='重新预览';return;}requestAnimationFrame(tick);};requestAnimationFrame(tick);
+      const tick=now=>{if(!running||!host.isConnected||!host.getClientRects().length||document.hidden){running=false;button.textContent='重新预览';return;}const elapsed=Math.min(total-1,now-start);draw(elapsed,Math.min(100,now-previous));previous=now;if(now-start>=total){running=false;button.textContent='重新预览';return;}requestAnimationFrame(tick);};requestAnimationFrame(tick);
     };return host;
   }
   window.RoundEyesEmotionUI={format,badge,show,hide,animation,has:key=>byKey.has(key)};

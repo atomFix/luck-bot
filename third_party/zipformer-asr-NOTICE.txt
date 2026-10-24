@@ -1,0 +1,10 @@
+Local Chinese ASR model: sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01
+Official exporter and checkpoint owner: csukuangfj (Fangjun Kuang), k2-fsa/icefall and sherpa-onnx.
+Release asset242594222: https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
+Parent checkpoint explicitly declares Apache-2.0:
+https://huggingface.co/csukuangfj/icefall-streaming-zipformer-small-ctc-zh-2025-04-01
+ONNX model card links to that checkpoint:
+https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-2025-04-01
+License text is included as sherpa-onnx-LICENSE in the same directory.
+Pinned archive and per-file hashes in app/dist/config/asr-model.json.
+The bundled asr-probe.wav is upstream test_wavs/0.wav, a public reproducible model test fixture, not user audio.

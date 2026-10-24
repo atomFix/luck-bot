@@ -96,22 +96,17 @@ function audit(event, meta = {}) {
   );
 }
 function metrics(attempt) {
-  const usage = parse(attempt.usage) ?? {},
-    prices = parse(attempt.price_snapshot) ?? [];
-  const result = [];
-  if (usage.input_tokens != null) {
-    if (
-      prices.some((p) =>
-        ["cache_hit_tokens", "cache_miss_tokens"].includes(p.metric),
-      )
+  const prices = parse(attempt.price_snapshot) ?? [];
+  if (["reaction", "reply"].includes(attempt.kind)) {
+    return prices.some((p) =>
+      ["cache_hit_tokens", "cache_miss_tokens"].includes(p.metric),
     )
-      result.push("cache_hit_tokens", "cache_miss_tokens");
-    else result.push("input_tokens");
+      ? ["cache_hit_tokens", "cache_miss_tokens", "output_tokens"]
+      : ["input_tokens", "output_tokens"];
   }
-  if (usage.output_tokens != null) result.push("output_tokens");
-  for (const key of ["measured_audio_ms", "measured_input_characters"])
-    if (usage[key] != null) result.push(key);
-  return result;
+  if (attempt.kind === "asr") return ["measured_audio_ms"];
+  if (attempt.kind === "tts") return ["measured_input_characters"];
+  return [];
 }
 function incomplete(attempt, costs) {
   if (costs.some((c) => c.kind === "provider_reported")) return false;

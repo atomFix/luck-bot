@@ -13,7 +13,8 @@ export class Ledger {
   >();
   private failure = "";
   private closed = false;
-  private constructor(private worker: Worker) {
+  private constructor(private worker?: Worker) {
+    if (!worker) return;
     worker.on("message", (m) => {
       const p = this.pending.get(m.id);
       if (!p) return;
@@ -49,9 +50,17 @@ export class Ledger {
       await ledger.call("ready", {});
       return ledger;
     } catch (e) {
-      await ledger.worker.terminate();
+      await ledger.worker!.terminate();
       throw e;
     }
+  }
+  static unavailable(error: unknown) {
+    const ledger = new Ledger();
+    ledger.failure =
+      error instanceof Error && /^storage_[a-z_]+$/.test(error.message)
+        ? error.message
+        : "storage_unavailable";
+    return ledger;
   }
   get health() {
     return { ok: !this.failure && !this.closed, error: this.failure };
@@ -71,11 +80,15 @@ export class Ledger {
         reject(new Error("storage_timeout"));
       }, 10000);
       this.pending.set(id, { resolve, reject, timer });
-      this.worker.postMessage({ id, op, input });
+      this.worker!.postMessage({ id, op, input });
     });
   }
   async close() {
     if (this.closed) return;
+    if (!this.worker) {
+      this.closed = true;
+      return;
+    }
     try {
       await this.call("close");
     } finally {

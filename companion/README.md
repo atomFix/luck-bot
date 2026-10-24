@@ -42,3 +42,13 @@ Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产�
 获得现场播放许可后，可运行 `node companion/scripts/acoustic-soak.mjs --play-test-sentences /tmp/acoustic-soak.json`。需先连接已安装应用并选择 Mac 输出；脚本用系统 Tingting 语音唤醒设备，再播放最多 10 条短句，间隔 57 秒，总计观察 10 分钟。会产生真实 ASR、语义和 TTS 调用；首个错误、断连、重启或超时立即停止，不调整音量或输出路由。报告仅保存轮次、耗时和安全错误码，不保存识别文本或音频。屏幕 FPS/内存需另外使用被动串口监控，不能由该脚本推断。
 
 诊断中 `utterance.ended.duration_ms` 是采集开始到主机结束采集确认的时间（包含说话）；`asr.done`、`reaction.ready`、`reaction.applied` 分别为识别、语义分析和设备确认耗时。`reply.first_token` 从开始请求回复计时；`tts.first_audio` 从首次请求合成到首个 PCM 块计时。Mac `playback.started` 从创建播放器到首个缓冲区的 `dataPlayedBack` 回调计时，是软件播放观察值，未使用外置麦克风测量声学延迟。`reply.completed` 从语义分析开始计时，直到回复和播放排空；它不包含 ASR 时间。
+
+## 本机管理后台与 SQLite
+
+管理后台包含运行概览、对话记录、用量与费用、声纹能力状态及设备配置。SQLite 位于 `~/Library/Application Support/Round Eyes Companion/companion.sqlite3`，仅从本版本启用后记录；旧版本内存中的谈话无法回填。正文默认保存，后台可暂停之后的正文保存、按日期预览清理正文或完整记录；清空模型上下文不会清除此数据库。没有保存原始录音。
+
+每轮详情保留识别文字、完整/部分回答、表情、设备确认、各阶段耗时及每次供应商请求（包含重试和分段 TTS）。流式调用未返回 usage、取消或计量缺失时显示未知，不按文本长度猜 token。ASR 毫秒及 TTS 字符/PCM 是本机测量，不能冒充服务商账单。配置价格后只对之后的请求估算费用；历史请求保留原价格快照，缓存输入不会与总输入重复计费。实际金额、估算和各币种分别展示，未知或部分定价不等于零花费。
+
+API Key 仍在 Keychain：配置页小眼睛可显示已保存值，切页/失焦/30秒后清除明文。普通状态、对话库、CLI/MCP不会返回Key。管理记录也没有默认暴露给CLI/MCP。数据库故障时暂停新的云端工作，并显示记录状态；异常退出遗留轮次在重启后标为中断。
+
+数据库由固定Node22.22.3的SQLite worker持有，打包必须通过 `node companion/scripts/verify-sqlite-runtime.mjs '/path/Round Eyes Companion.app'` 检查。`node:sqlite` 在该运行时仍有 experimental 提示；已用实际 bundled runtime 读写/重开测试，不代表已完成未来运行时迁移。未来云数据库使用独立异步repository实现；本次没有云同步或远程管理服务。多声纹和后台常驻采音尚未在本后台版本启用。

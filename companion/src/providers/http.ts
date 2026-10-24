@@ -84,7 +84,7 @@ export async function* sse(
     while (true) {
       signal.throwIfAborted();
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) throw new Error("provider_stream_incomplete");
       bytes += value.length;
       if (bytes > 262144) throw new Error("provider_size");
       rest += decoder.decode(value, { stream: true });

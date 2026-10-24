@@ -397,16 +397,40 @@
   }
   const speaker = (op, input = {}) => api.call("speaker", {op,input});
   const speakerLabels={disabled:"后台已关闭",paused:"已暂停",starting:"启动中",listening:"持续聆听中",enrolling:"声纹录入中",fault:"需要处理",no_profiles:"请先录入声纹",unavailable:"组件不可用"};
-  let speakerLoading=false, speakerInitialized=false;
+  let speakerLoading=false, speakerInitialized=false, profileSnapshot;
   async function speakers(){
     if(speakerLoading)return;speakerLoading=true;
     try{const value=await speaker("list");
       $("speaker-state").textContent=speakerLabels[value.state]??value.state;
       $("speaker-description").textContent=value.speaker_filter?"声纹筛选开启：已录入的人普通说话时只回应表情，说‘你好小智’或按 BOOT 才语音聊天。未匹配的声音在本地忽略。":"声纹筛选关闭：任何人的普通说话都可触发表情理解，说‘你好小智’或按 BOOT 才语音聊天。声纹档案保留。";
       $("speaker-status").textContent=(value.speaker_filter?"仅接受已录入声纹":"声纹筛选关闭 · 接受所有说话人")+` · 本地模型：${value.model.ready?"已就绪":"待加载"} · 启用档案 ${value.profile_count} 人 · 本次检测 ${value.local_utterances} 句`+(value.error?" · "+value.error:"")+(value.last_event?" · 最近结果："+reasonText(value.last_event):"");
-      const host=$("speaker-profiles");host.replaceChildren();
-      if(!value.profiles.length)host.append(node("p","还没有声纹档案。关闭声纹筛选时可直接使用；开启筛选前需完成录入。","muted"));
-      for(const person of value.profiles){const row=node("div",null,"row"),check=node("input");check.type="checkbox";check.checked=person.enabled;check.setAttribute("aria-label","启用 "+person.name);check.onchange=()=>speakerRun(check,()=>speaker("profile-enable",{id:person.id,enabled:check.checked}));const remove=node("button","删除","quiet");remove.onclick=()=>{if(confirm("删除声纹档案“"+person.name+"”？"))void speakerRun(remove,()=>speaker("profile-remove",{id:person.id}));};row.append(check,node("strong",person.name),node("small",person.id),remove);host.append(row);}
+      const host = $("speaker-profiles"), snapshot = JSON.stringify(value.profiles);
+      if (snapshot !== profileSnapshot) {
+        host.replaceChildren();
+        if (!value.profiles.length) host.append(node("p", "还没有声纹档案。关闭声纹筛选时可直接使用；开启筛选前需完成录入。", "muted"));
+        for (const person of value.profiles) {
+          const row = node("div", null, "speaker-profile");
+          const toggle = node("label", null, "checkbox speaker-profile-toggle"), check = node("input");
+          check.type = "checkbox";
+          check.checked = person.enabled;
+          check.setAttribute("aria-label", "启用 " + person.name);
+          check.onchange = async () => {
+            await speakerRun(check, () => speaker("profile-enable", {id: person.id, enabled: check.checked}));
+            if (check.isConnected) check.checked = person.enabled;
+          };
+          const identity = node("span", null, "speaker-profile-identity");
+          identity.append(node("strong", person.name), node("small", person.id));
+          toggle.append(check, identity);
+          const remove = node("button", "删除", "quiet");
+          remove.setAttribute("aria-label", "删除声纹档案：" + person.name);
+          remove.onclick = () => {
+            if (confirm("删除声纹档案“" + person.name + "”？")) void speakerRun(remove, () => speaker("profile-remove", {id: person.id}));
+          };
+          row.append(toggle, remove);
+          host.append(row);
+        }
+        profileSnapshot = snapshot;
+      }
       const model=api.state().local_asr;$("local-asr-status").textContent=model?`本地识别：${model.ready?"已就绪":"待加载"} · ${model.model}`+(model.error?" · "+model.error:""):"本地识别组件不可用";
       const e=value.enrollment,active=e&&!['complete'].includes(e.state);
       $("speaker-enroll").disabled=!!active;$("speaker-name").disabled=!!active;$("speaker-cancel").hidden=!active;$("speaker-next").hidden=!e||!['next_sample','failed'].includes(e.state);

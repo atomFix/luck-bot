@@ -47,7 +47,7 @@ export class AmbientSegmenter {
   async push(
     frame: AudioFrame,
   ): Promise<
-    | { type: "start" }
+    | { type: "start";pcm:Uint8Array }
     | { type:"ignored";code:"utterance_too_long" }
     | { type: "end"; pcm: Uint8Array; voiced_ms: number }
     | null
@@ -88,7 +88,7 @@ export class AmbientSegmenter {
       this.chunks = this.pre;
       this.pre = [];
       this.bytes = this.chunks.reduce((n, b) => n + b.length, 0);
-      return { type: "start" };
+      return { type: "start",pcm:Buffer.concat(this.chunks) };
     }
     if (ended) {
       const result = {

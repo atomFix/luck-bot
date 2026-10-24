@@ -1,3 +1,4 @@
+import {LocalAsr} from './voice/local-asr.js';
 import {SpeakerExtractor} from './speaker/extractor.js';
 import {SpeakerProfiles} from './speaker/profiles.js';
 import { Ledger } from "./ledger/repository.js";
@@ -55,8 +56,9 @@ export async function startCompanion(dir = DATA_DIR) {
   const settings = new SettingsStore(dir);
   const secrets = new KeychainSecrets();
   const extractor=new SpeakerExtractor();
+  const asr=new LocalAsr();
   const profiles=new SpeakerProfiles(join(dir,'speaker-vault.json'),secrets,extractor.status.model);
-  const app = new Companion(settings, secrets, undefined, undefined, journal,{profiles,extractor});
+  const app = new Companion(settings, secrets, undefined, undefined, journal,{profiles,extractor,asr});
   await app.initialize();
   let local: Awaited<ReturnType<typeof startLocalServer>> | undefined;
   const daemon = createServer(async (req, res) => {

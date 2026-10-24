@@ -1,11 +1,12 @@
+import {randomUUID} from 'node:crypto';import {beginAttempt,meterResponse,type MeterMeta} from '../ledger/journal.js';
 export type Fetch = (url:string,init?:RequestInit)=>Promise<Response>;
 export function providerError(status:number):Error {return new Error(status===401||status===403?'provider_auth':status===402?'provider_balance':status===429?'provider_rate':'provider_http_'+status);}
-export async function request(fetcher:Fetch,url:string,init:RequestInit,signal:AbortSignal,budget=15000):Promise<Response>{
- const bounded=AbortSignal.any([signal,AbortSignal.timeout(budget)]);
+export async function request(fetcher:Fetch,url:string,init:RequestInit,signal:AbortSignal,budget=15000,meta?:MeterMeta):Promise<Response>{
+ const logical_id=randomUUID();const bounded=AbortSignal.any([signal,AbortSignal.timeout(budget)]);
  for(let attempt=0;;attempt++){
-  bounded.throwIfAborted();let response:Response;
-  try{response=await fetcher(url,{...init,signal:bounded,redirect:'error'});}catch{bounded.throwIfAborted();if(attempt===0)continue;throw new Error('provider_network');}
-  if(response.ok)return response;
+  bounded.throwIfAborted();const meter=meta?await beginAttempt({...meta,logical_id}):undefined;let response:Response;
+  try{response=await fetcher(url,{...init,signal:bounded,redirect:'error'});}catch{await meter?.finish(bounded.aborted?'cancelled':'failed',{error:bounded.aborted?'cancelled':'provider_network'});bounded.throwIfAborted();if(attempt===0)continue;throw new Error('provider_network');}
+  if(response.ok){if(meter)meterResponse(response,meter);return response;}await meter?.finish('failed',{error:providerError(response.status).message});
   await response.body?.cancel();
   if(attempt===0&&(response.status===429||response.status>=500)){await new Promise<void>((resolve,reject)=>{const abort=()=>{clearTimeout(t);reject(new Error('cancelled'));};const t=setTimeout(()=>{bounded.removeEventListener('abort',abort);resolve();},250);bounded.addEventListener('abort',abort,{once:true});});continue;}
   throw providerError(response.status);

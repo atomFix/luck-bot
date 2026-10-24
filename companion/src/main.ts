@@ -1,3 +1,4 @@
+import {Ledger} from './ledger/repository.js';import {TurnJournal} from './ledger/journal.js';
 import {createServer} from 'node:http';import {createConnection} from 'node:net';import {mkdir,writeFile,chmod,unlink,lstat} from 'node:fs/promises';import {join} from 'node:path';import {fileURLToPath} from 'node:url';import {SettingsStore,DATA_DIR} from './local/settings.js';import {KeychainSecrets} from './secrets.js';import {startLocalServer} from './local/server.js';import {Companion} from './app.js';
 async function prepareSocket(path:string){
  let entry;try{entry=await lstat(path);}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return;throw error;}
@@ -6,15 +7,15 @@ async function prepareSocket(path:string){
  if(!stale)throw new Error('daemon_running');await unlink(path);
 }
 export async function startCompanion(dir=DATA_DIR){
- await mkdir(dir,{recursive:true,mode:0o700});const settings=new SettingsStore(dir);const secrets=new KeychainSecrets();const app=new Companion(settings,secrets);await app.initialize();
- let local:Awaited<ReturnType<typeof startLocalServer>>|undefined;const socket=join(dir,'control.sock');await prepareSocket(socket);const daemon=createServer(async(req,res)=>{res.setHeader('Content-Type','application/json');try{
+ await mkdir(dir,{recursive:true,mode:0o700});const socket=join(dir,'control.sock');await prepareSocket(socket);const ledger=await Ledger.open(join(dir,'companion.sqlite3'));const journal=new TurnJournal(ledger);const settings=new SettingsStore(dir);const secrets=new KeychainSecrets();const app=new Companion(settings,secrets,undefined,undefined,journal);await app.initialize();
+ let local:Awaited<ReturnType<typeof startLocalServer>>|undefined;const daemon=createServer(async(req,res)=>{res.setHeader('Content-Type','application/json');try{
   if(req.method!=='POST'||req.url!=='/action')throw new Error('method');let body='',bytes=0;for await(const b of req){bytes+=b.length;if(bytes>8192)throw new Error('body_size');body+=b;}const {name,input}=JSON.parse(body);if(typeof name!=='string')throw new Error('action');const result=name==='open-ui'?local?{url:local.issueBootstrap()}:(()=>{throw new Error('starting');})():await app.action(name,input);res.end(JSON.stringify(result));
  }catch(e){res.statusCode=400;res.end(JSON.stringify({error:e instanceof Error&&/^[a-zA-Z0-9_.-]+$/.test(e.message)?e.message:'operation_failed'}));}});
  // Refuse a duplicate daemon. Only remove a proven stale Unix socket.
  await new Promise<void>((resolve,reject)=>{daemon.once('error',reject);daemon.listen(socket,resolve);});await chmod(socket,0o600);
  local=await startLocalServer({secretStore:secrets,actions:(n,b)=>app.action(n,b),state:()=>app.state(),credentialsChanged:()=>app.resetServices()});
  const url=local.url+'/#'+local.bootstrap;await writeFile(join(dir,'launch.json'),JSON.stringify({url,pid:process.pid,app_path:process.env.ROUND_EYES_APP_PATH??null}),{mode:0o600});
- const close=async()=>{await app.disconnect();await local?.close();await new Promise<void>(r=>daemon.close(()=>r()));await unlink(socket).catch(()=>{});};
+ const close=async()=>{await app.disconnect();await journal.close();await ledger.close();await local?.close();await new Promise<void>(r=>daemon.close(()=>r()));await unlink(socket).catch(()=>{});};
  return {url,close,app};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1]){

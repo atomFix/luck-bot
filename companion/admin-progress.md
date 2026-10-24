@@ -7,3 +7,5 @@ Pre-flight 1→6: SQLite worker .mjs needs build copying; bundled Node22.22.3 li
 Task 1: SQLite repository/money/worker tests RED missing implementation → GREEN after correcting fixture price effective date (historical request timestamps must use historical price). Persistence/reopen/interrupted recovery, private mode, exact decimal costs, idempotent terminal attempt, filters and privacy/clear confirmation covered. Full suite result recorded with commit below.
 Task 1 verification: full54/54 tests + tsc passed before commit b6a2246.
 Task 2: request retry and usage-only stream tests RED→GREEN; before-request DB failure prevents network. Added cancelled partial-response/unknown-usage coverage; provider adapters never store headers or key. Final suite result follows next commit.
+Task 2 verification: full57/57 tests + tsc passed before bf40976.
+Task 3: real fake-Wire no_speech capture test RED0 records→GREEN1 failed/no cloud attempt, app text/capture contexts and provider partial response attached. Full58/58 + tsc passed. Installed app not changed.

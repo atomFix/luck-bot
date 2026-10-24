@@ -1,0 +1,193 @@
+{
+  "date": "2026-10-24",
+  "scope": "Exact expression requests and screen direction semantics",
+  "root_causes": [
+    "Catalog names delicious/cool were not fully covered by direct-request parser or Chinese model vocabulary",
+    "Direction Y axis sign was unspecified in model prompt",
+    "Conversation list displayed only primary emotion without motion directions"
+  ],
+  "checks": {
+    "typescript_tests_passed": 168,
+    "typescript_check": true,
+    "signed_companion_installed": true,
+    "pairing_and_settings_preserved": true,
+    "firmware_change_required": false,
+    "catalog_labels_covered": 21,
+    "fixed_backend_port": 4382,
+    "local_device_examples": [
+      {
+        "text": "你难过一下可以吗？",
+        "result": {
+          "emotion": "sad",
+          "hold_ms": 2500
+        },
+        "ack_ms": 123
+      },
+      {
+        "text": "呃，那你满足一下呢。",
+        "result": {
+          "emotion": "delicious",
+          "hold_ms": 2500
+        },
+        "ack_ms": 104
+      },
+      {
+        "text": "呃，右下。",
+        "result": {
+          "emotion": "delicious",
+          "hold_ms": 3600
+        },
+        "ack_ms": 70
+      },
+      {
+        "text": "右上。",
+        "result": {
+          "emotion": "delicious",
+          "hold_ms": 3600
+        },
+        "ack_ms": 270
+      },
+      {
+        "text": "淡定。",
+        "result": {
+          "emotion": "cool",
+          "hold_ms": 2500
+        },
+        "ack_ms": 78
+      }
+    ],
+    "ledger_examples": [
+      {
+        "text": "淡定。",
+        "emotion": "cool",
+        "mode": "text",
+        "duration_ms": 38,
+        "provider_attempts": 0,
+        "animation": {
+          "scene": "requested",
+          "steps": [
+            {
+              "emotion": "cool",
+              "duration_ms": 2500,
+              "look_x": 0,
+              "look_y": 0,
+              "scale": 1,
+              "shake": 0,
+              "blink": 1,
+              "blink_once": false,
+              "transition_ms": 750
+            }
+          ]
+        },
+        "source": "local"
+      },
+      {
+        "text": "右上。",
+        "emotion": "delicious",
+        "mode": "text",
+        "duration_ms": 222,
+        "provider_attempts": 0,
+        "animation": {
+          "scene": "requested_direction",
+          "steps": [
+            {
+              "emotion": "delicious",
+              "duration_ms": 3600,
+              "look_x": 1,
+              "look_y": -1,
+              "scale": 1,
+              "shake": 0,
+              "blink": 1,
+              "blink_once": false,
+              "transition_ms": 800
+            }
+          ]
+        },
+        "source": "local"
+      },
+      {
+        "text": "呃，右下。",
+        "emotion": "delicious",
+        "mode": "text",
+        "duration_ms": 35,
+        "provider_attempts": 0,
+        "animation": {
+          "scene": "requested_direction",
+          "steps": [
+            {
+              "emotion": "delicious",
+              "duration_ms": 3600,
+              "look_x": 1,
+              "look_y": 1,
+              "scale": 1,
+              "shake": 0,
+              "blink": 1,
+              "blink_once": false,
+              "transition_ms": 800
+            }
+          ]
+        },
+        "source": "local"
+      },
+      {
+        "text": "呃，那你满足一下呢。",
+        "emotion": "delicious",
+        "mode": "text",
+        "duration_ms": 38,
+        "provider_attempts": 0,
+        "animation": {
+          "scene": "requested",
+          "steps": [
+            {
+              "emotion": "delicious",
+              "duration_ms": 2500,
+              "look_x": 0,
+              "look_y": 0,
+              "scale": 1,
+              "shake": 0,
+              "blink": 1,
+              "blink_once": false,
+              "transition_ms": 750
+            }
+          ]
+        },
+        "source": "local"
+      },
+      {
+        "text": "你难过一下可以吗？",
+        "emotion": "sad",
+        "mode": "text",
+        "duration_ms": 69,
+        "provider_attempts": 0,
+        "animation": {
+          "scene": "requested",
+          "steps": [
+            {
+              "emotion": "sad",
+              "duration_ms": 2500,
+              "look_x": 0,
+              "look_y": 0,
+              "scale": 1,
+              "shake": 0,
+              "blink": 1,
+              "blink_once": false,
+              "transition_ms": 750
+            }
+          ]
+        },
+        "source": "local"
+      }
+    ],
+    "final_status": {
+      "connected": true,
+      "error": "",
+      "state": "listening",
+      "streaming": true
+    }
+  },
+  "limits": [
+    "Text-to-device checks isolate command interpretation from microphone/ASR quality; timings exclude audio capture and ASR.",
+    "Free-form semantic responses still depend on the model; quoted, negated and hypothetical commands deliberately defer.",
+    "Historical plans and model responses are retained unchanged, including their original incorrect coordinates."
+  ]
+}

@@ -101,7 +101,7 @@
         node("span", label(t.status), "status " + t.status),
         node("span",reasonText(t.error),"turn-reason"),
         (t.user_text ?? "未保存 / 未识别").slice(0, 48),
-        window.RoundEyesEmotionUI.badge(t.emotion),
+        turnExpression(t),
         ms(t.duration_ms),
         `${t.input_tokens ?? "?"} / ${t.output_tokens ?? "?"}`,
         t.attempts
@@ -109,6 +109,13 @@
           : "无需云调用",
       ];
     });
+  }
+  function directionLabel(x,y){return (x<0?'左':x>0?'右':'')+(y<0?'上':y>0?'下':'');}
+  function turnExpression(t){
+    const host=node('div',null,'turn-expression');host.append(window.RoundEyesEmotionUI.badge(t.emotion));
+    const directions=(t.motion_directions??[]).map(d=>directionLabel(d.x,d.y)).filter(Boolean);
+    if(directions.length)host.append(node('small','朝向：'+directions.join(' → '),'muted'));
+    return host;
   }
   function costs(host, s) {
     const target = $(host);

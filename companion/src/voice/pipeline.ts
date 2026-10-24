@@ -1,7 +1,7 @@
 import {setTimeout as animationDelay} from 'node:timers/promises';
-import {reactionAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,paceAnimation,animationReplacementDelay,conversationalAnimation,type AnimationPlan} from './animation.js';
+import {requestedAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,paceAnimation,animationReplacementDelay,conversationalAnimation,type AnimationPlan} from './animation.js';
 import {performReaction} from './reaction-performance.js';
-import {localReaction,requestedExpression} from './fast-reaction.js';
+import {localReaction} from './fast-reaction.js';
 import { currentJournal } from "../ledger/journal.js";
 import { performance } from "node:perf_hooks";
 import type {
@@ -122,13 +122,13 @@ export class VoicePipeline {
     let history=this.speakerHistory.get(speaker);
     if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(12,6000);this.speakerHistory.set(speaker,history);}
     const position=previous?animationPosition(previous.plan,Math.round(performance.now()-previous.at)):undefined;
-    const requested=requestedExpression(text);
+    const requested=requestedAnimation(text,history.snapshot(),previous?primaryEmotion(previous.plan):undefined);
     const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral',previous?primaryEmotion(previous.plan):undefined);
-    const quick=requested??(local?.fast?localReaction(text,history.snapshot()):null);
+    const quick=!requested&&local?.fast?localReaction(text,history.snapshot()):null;
     const context=history.snapshot();
     if(position)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(position)});
     context.push({role:'user',content:local?.continued?'本次是连续讲述中的时间窗口，句子可能未说完；只回应已经明确的内容，不推断结局。':'本次在自然停顿后识别；不把缺少含义的残句猜成完整故事。'});
-    const chosen=conversation??(quick?(requested?reactionAnimation(quick):socialAnimation(quick,text)):await this.options.brain.animation!(text,context,turn.signal));this.check(turn);
+    const chosen=requested??conversation??(quick?socialAnimation(quick,text):await this.options.brain.animation!(text,context,turn.signal));this.check(turn);
     const plan=requested?chosen:paceAnimation(chosen);
     const elapsed=previous?Math.round(performance.now()-previous.at):0;
     const remaining=previous?previous.plan.steps.reduce((n,s)=>n+s.duration_ms,0)-elapsed:0;
@@ -146,7 +146,7 @@ export class VoicePipeline {
     const buffer=!requested&&!conversation&&previous?animationReplacementDelay(previous.plan,elapsed):0;
     if(buffer){const start=performance.now();await animationDelay(buffer,undefined,{signal:turn.signal});this.check(turn);const event={event:'animation.display_buffer',turn:turn.id,duration_ms:Math.round(performance.now()-start)};if(this.options.diagnose)this.options.diagnose(event);else currentJournal()?.event(event);}
     const emotion=primaryEmotion(plan),duration=plan.steps.reduce((n,s)=>n+s.duration_ms,0);
-    await currentJournal()?.saveAnimation(plan,conversation?'context':quick?'local':animationSource(plan));
+    await currentJournal()?.saveAnimation(plan,requested||quick?'local':conversation?'context':animationSource(plan));
     const started=performance.now();await this.options.device.animate!(plan,turn);this.check(turn);
     if(this.animationStates.size>=10&&!this.animationStates.has(speaker))this.animationStates.delete(this.animationStates.keys().next().value!);this.animationStates.set(speaker,{plan,at:performance.now()});
     const event={event:'animation.applied',turn:turn.id,duration_ms:Math.round(performance.now()-started),code:plan.scene};

@@ -163,6 +163,14 @@ function enrichTurn(turn) {
   }
   return {
     ...turn,
+    motion_directions: (()=>{
+      const row=db.prepare('SELECT plan FROM turn_animations WHERE turn_id=?').get(turn.id);
+      const steps=parse(row?.plan)?.steps??[];
+      return [...new Map(steps.filter(s=>Math.abs(s.look_x)>.05||Math.abs(s.look_y)>.05).map(s=>{
+        const x=Math.abs(s.look_x)>.05?Math.sign(s.look_x):0,y=Math.abs(s.look_y)>.05?Math.sign(s.look_y):0;
+        return [x+','+y,{x,y}];
+      })).values()];
+    })(),
     input_tokens: input,
     output_tokens: output,
     costs: groupedCosts(costs),

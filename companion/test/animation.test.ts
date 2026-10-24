@@ -67,3 +67,24 @@ test('quoted hearing questions, negated changes and bare fragments never trigger
  const {conversationalAnimation}=await import('../src/voice/animation.js');
  for(const text of ['他说你现在还能听到我说话吗','不要换表情','如果再换一个会怎样','换','。','？！'])assert.equal(conversationalAnimation(text),null,text);
 });
+
+test('catalog demos and directional followups execute exact local plans with fast reactions disabled',async()=>{
+ const sent:any[]=[];let modelCalls=0;
+ const p=new VoicePipeline({animations:true,brain:{animation:async()=>{modelCalls++;throw Error('explicit commands must not invoke the model');}},device:{animate:async(plan:any)=>{sent.push(plan);return {command_id:'a',applied_uptime_ms:0};},cancel:async()=>{}},asr:{},tts:{},output:{cancel:async()=>{}}}as any);
+ for(const [i,text] of ['你难过一下可以吗？','呃，那你满足一下呢。','呃，右下。','右上。','淡定。'].entries())await p.expression(new Uint8Array(),i+1,'owner',undefined,{text,fast:false});
+ assert.equal(modelCalls,0);assert.equal(sent.length,5);
+ assert.deepEqual(sent.map(p=>p.steps.map((s:any)=>s.emotion)),[['sad'],['delicious'],['delicious'],['delicious'],['cool']]);
+ assert.deepEqual(sent[2].steps.map((s:any)=>[s.look_x,s.look_y]),[[1,1]]);
+ assert.deepEqual(sent[3].steps.map((s:any)=>[s.look_x,s.look_y]),[[1,-1]]);
+});
+
+test('list and detail retain actual historical direction values without rewriting prior model mistakes',async()=>{
+ const {Ledger}=await import('../src/ledger/repository.js');const {mkdtemp,rm}=await import('node:fs/promises');const {join}=await import('node:path');const {tmpdir}=await import('node:os');const dir=await mkdtemp(join(tmpdir(),'eye-directions-'));const db=await Ledger.open(join(dir,'db'));
+ try{
+  await db.call('beginTurn',{id:'direction',mode:'ambient',started_at:1,user_text:'右上'});
+  const plan=parseAnimationChoice({scene:'old_model',steps:[{emotion:'neutral',duration_ms:2800,look_x:.7,look_y:.7}]});
+  await db.call('saveAnimation',{turn_id:'direction',plan,source:'model'});
+  assert.deepEqual((await db.call('list',{})).items[0].motion_directions,[{x:1,y:1}]);
+  assert.equal((await db.call('detail',{id:'direction'})).animation.plan.steps[0].look_y,.7);
+ }finally{await db.close();await rm(dir,{recursive:true,force:true});}
+});

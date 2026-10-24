@@ -1,18 +1,41 @@
 import type {Reaction,Emotion,Message} from '../contracts.js';
-// Only explicit whole-sentence eye requests; no keyword-only matching in stories.
-export function requestedExpression(input:string):Reaction|null {
+// Catalog labels and intentional synonyms; each maps to one supported wire emotion.
+export const EXPRESSION_NAMES:Record<string,Emotion>={专注:'neutral',开心:'happy',笑:'happy',大笑:'laughing',逗趣:'funny',难过:'sad',伤心:'sad',生气:'angry',哭泣:'crying',关心:'loving',害羞:'embarrassed',尴尬:'embarrassed',惊喜:'surprised',惊讶:'surprised',好奇心:'surprised',好奇:'surprised',震惊:'shocked',思考:'thinking',眨眼:'winking',淡定:'cool',冷静:'cool',放松:'relaxed',满足:'delicious',亲昵:'kissy',自信:'confident',困倦:'sleepy',瞌睡:'sleepy',调皮:'silly',困惑:'confused',疑惑:'confused'};
+const names=Object.keys(EXPRESSION_NAMES).sort((a,b)=>b.length-a.length).join('|');
+const prefix='(?:(?:那|那么|然后))?(?:请|麻烦)?(?:现在|再|先)?(?:你)?(?:能不能|可不可以|能|可以)?(?:给我|帮我)?';
+const suffix='(?:试试)?(?:可以吗|行吗|好吗|好不好|可不可以|行不行|吗|吧|呀|呗|呢)?';
+const expressionRequest=new RegExp('^'+prefix+'(?:(?:表演|表现|表达|展示|显示|做|来|变成|切换成|换成|变)(?:一下|一个|个)?)?(?:自己的)?('+names+')(?:的)?(?:眼神|表情|样子)?(?:一下|一个|一点)?'+suffix+'$');
+function commandText(input:string):string|null {
  if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
- const text=input.replace(/[\s，,。.!！、]/gu,'').replace(/^(?:嗯|你好|小智|Luck)+/u,'');
+ return input.replace(/[\s，,。.!！?？、]/gu,'').replace(/^(?:嗯|呃|额|啊|哦|你好|小智|Luck)+/iu,'');
+}
+export function inEyeRequestContext(history:Message[]):boolean {
+ // Only the immediately preceding command/acknowledgement can make a bare label a command.
+ for(const m of history.filter(m=>m.role==='assistant').slice(-2).reverse()){
+  if(/；动画：acknowledge(?:；|$)/.test(m.content))continue;
+  return /；动画：requested(?:_direction)?(?:；|$)/.test(m.content);
+ }
+ return false;
+}
+// Whole sentences only: statements, stories, negations and quotations defer to the model.
+export function requestedExpression(input:string,history:Message[]=[]):Reaction|null {
+ const text=commandText(input);if(!text)return null;
  if(/^(?:你)?(?:给我)?给点回应(?:吧|呀|呗)?$/.test(text))return {emotion:'winking',hold_ms:2500};
- if(!/^(?:请|现在|你|给我|表演|表现|表达|展示|显示|做|来)/.test(text)&&!/(?:一下|试试)/.test(text))return null;
- const match=/^(?:请)?(?:现在)?(?:你)?(?:给我)?(?:(?:表演|表现|表达|展示|显示|做|来)(?:一下|一个)?)?(?:自己的)?(大笑|笑|开心|尴尬|害羞|好奇心|好奇|思考|困惑|惊讶|眨眼|调皮|生气|难过|伤心|哭泣|自信|专注|放松|困倦|瞌睡)(?:的)?(?:眼神|表情)?(?:一下|一个)?(?:试试)?(?:吧|呀|呗)?[?？]?$/.exec(text);
- if(!match)return null;
- const map:Record<string,Emotion>={大笑:'laughing',笑:'happy',开心:'happy',尴尬:'embarrassed',害羞:'embarrassed',好奇心:'surprised',好奇:'surprised',思考:'thinking',困惑:'confused',惊讶:'surprised',眨眼:'winking',调皮:'silly',生气:'angry',难过:'sad',伤心:'sad',哭泣:'crying',自信:'confident',专注:'neutral',放松:'relaxed',困倦:'sleepy',瞌睡:'sleepy'};
- return {emotion:map[match[1]!]!,hold_ms:2500};
+ const match=expressionRequest.exec(text);if(!match)return null;
+ const instruction=text.replace(match[1]!,'');
+ if(!/你|请|麻烦|给我|帮我|表演|表现|表达|展示|显示|做|来|变|换|一下|一个|一点|试试|眼神|表情|样子|现在|再|先/.test(instruction)&&!inEyeRequestContext(history))return null;
+ return {emotion:EXPRESSION_NAMES[match[1]!]!,hold_ms:2500};
+}
+export function requestedDirection(input:string):{look_x:number;look_y:number}|null {
+ const text=commandText(input);if(!text)return null;
+ const m=new RegExp('^'+prefix+'(?:向|往)?(?:看向|看|看看)?(左上|右上|左下|右下|左边|右边|上面|下面|左|右|上|下|抬头|低头)(?:看一下|看看|看|一点点|一点|一下)?'+suffix+'$').exec(text);
+ if(!m)return null;
+ const d=m[1]!;
+ return {look_x:d.includes('左')?-1:d.includes('右')?1:0,look_y:/上|抬头/.test(d)?-1:/下|低头/.test(d)?1:0};
 }
 // Whole-phrase social responses from the robot's perspective. Uncertain semantics defer.
 export function localReaction(input:string,history:Message[]=[]):Reaction|null {
- const requested=requestedExpression(input);if(requested)return requested;
+ const requested=requestedExpression(input,history);if(requested)return requested;
  if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
  const text=input.replace(/[\s，,。.!！、]/gu,'');
  const finish=(choices:Emotion[]):Reaction=>{

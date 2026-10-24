@@ -1,4 +1,6 @@
 import {z} from 'zod';
+import {requestedExpression,requestedDirection} from './fast-reaction.js';
+import type {Message} from '../contracts.js';
 import {EMOTIONS,type Emotion,type Reaction} from '../contracts.js';
 const StepSchema=z.object({emotion:z.enum(EMOTIONS),duration_ms:z.number().int().min(200).max(5000),look_x:z.number().min(-1).max(1).default(0),look_y:z.number().min(-1).max(1).default(0),scale:z.number().min(.65).max(1.2).default(1),shake:z.number().min(0).max(1).default(0),blink:z.number().min(0).max(3).default(1),blink_once:z.boolean().default(false),transition_ms:z.number().int().min(120).max(1500).default(300)}).strict();
 export const AnimationSchema=z.object({scene:z.string().regex(/^[a-z_]{1,32}$/),steps:z.array(StepSchema).min(1).max(12)}).strict().refine(p=>p.steps.reduce((n,s)=>n+s.duration_ms,0)<=30000,{message:'animation_duration'});
@@ -21,6 +23,13 @@ export function parseAnimationChoice(value:unknown):AnimationPlan{
  return 'preset'in choice?AnimationSchema.parse({scene:choice.preset,steps:SCENES[choice.preset].steps}):choice;
 }
 export function reactionAnimation(reaction:Reaction):AnimationPlan{return AnimationSchema.parse({scene:'requested',steps:[step(reaction.emotion,reaction.hold_ms)]});}
+// Explicit eye commands bypass free-form persona interpretation, even with fast reactions disabled.
+export function requestedAnimation(text:string,history:Message[]=[],lastEmotion:Emotion='neutral'):AnimationPlan|null {
+ const reaction=requestedExpression(text,history);
+ if(reaction)return reactionAnimation(reaction);
+ const direction=requestedDirection(text);
+ return direction?AnimationSchema.parse({scene:'requested_direction',steps:[step(lastEmotion,3600,{...direction,transition_ms:800})]}):null;
+}
 export function primaryEmotion(plan:AnimationPlan):Emotion{const preferred:Record<string,Emotion>={horror:'shocked',relief:'relaxed',celebration:'happy',comfort:'loving',teased:'silly',problem:'thinking',curious:'surprised',greeting:'happy',shy:'embarrassed'};const target=preferred[plan.scene];if(target&&plan.steps.some(s=>s.emotion===target))return target;return [...plan.steps].filter(s=>s.emotion!=='neutral').sort((a,b)=>b.duration_ms-a.duration_ms)[0]?.emotion??'neutral';}
 
 export function animationSource(plan:AnimationPlan){return plan.scene in SCENES&&JSON.stringify(plan.steps)===JSON.stringify(SCENES[plan.scene as Scene].steps)?'preset':'model';}

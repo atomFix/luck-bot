@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-24",
+  "style": "exaggerated eye silhouettes and expressive scene choreography",
+  "emotions": 21,
+  "base_poses": 25,
+  "firmware": {
+    "offset": "0x700000",
+    "active_slot": 1,
+    "firmware_bytes": 3592496,
+    "sha256": "5c57fd01b4cc09ae125e256dd172b73d657908db053daf7baa281ea85d4fb060",
+    "flash_verified": true
+  },
+  "checks": {
+    "typescript_tests": 152,
+    "typescript_check": true,
+    "native_suites": [
+      "eyes_model",
+      "triangulate",
+      "protocol",
+      "dirty_region",
+      "rasterize",
+      "timeline",
+      "expression_bounds",
+      "signals"
+    ],
+    "extreme_motion_bounds": "All emotions, 5 behaviors, min/max scale, full look and shake, full speech energy stay inside cropped canvas",
+    "catalog_matches_native": true,
+    "signed_companion_installed": true,
+    "device_pairing_preserved": true
+  },
+  "live_demo": [
+    {
+      "preset": "celebration",
+      "steps": 7,
+      "duration_ms": 7750,
+      "ack_ms": 92
+    },
+    {
+      "preset": "teased",
+      "steps": 6,
+      "duration_ms": 5750,
+      "ack_ms": 72
+    },
+    {
+      "preset": "horror",
+      "steps": 7,
+      "duration_ms": 9350,
+      "ack_ms": 88
+    },
+    {
+      "connected": true,
+      "ambient": "listening",
+      "error": ""
+    }
+  ],
+  "renderer": {
+    "samples": 4,
+    "refresh_fps_min": 25.5,
+    "refresh_fps_max": 27.0,
+    "panic_detected": false
+  },
+  "limits": [
+    "New physical appearance awaits user observation; command acknowledgements and diagnostics are verified.",
+    "Browser preview illustrates choreography, not exact board spring/raster timing.",
+    "This short animation smoke run does not replace a long voice or overnight stability test."
+  ]
+}

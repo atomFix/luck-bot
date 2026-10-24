@@ -16,9 +16,12 @@ Frame EyesModel::Tick(uint64_t now) {
     // A backwards timestamp must return precisely the last rendered geometry.
     const bool backwards=started_&&now<last_;
     if(backwards)now=last_;
-    const uint64_t age=now>=pose_at_?now-pose_at_:0;
+    const bool motion_changed=motion_.active&&motion_.key!=motion_key_;
+    if(motion_changed){motion_key_=motion_.key;motion_at_=now;}
+    const uint64_t origin=motion_.active?motion_at_:pose_at_;
+    const uint64_t age=now>=origin?now-origin:0;
     const auto& list=kEmotions[motion_.active?motion_.emotion:emotion_];
-    uint8_t selected=list.ids[(age/5200)%list.count];
+    uint8_t selected=list.ids[(age/list.cycle_ms)%list.count];
     if((motion_.active?motion_.emotion:emotion_)==0){
         selected=0;
         if(behavior_==Behavior::Waiting)selected=(age/5200)%2?14:8;
@@ -29,19 +32,19 @@ Frame EyesModel::Tick(uint64_t now) {
     pose_=forced_.value_or(selected);
     Pose target=GetPose(pose_);
     if(!started_){started_=true;last_=now;blink_at_=now+3500;}
-    if(motion_.active&&motion_.key!=motion_key_){motion_key_=motion_.key;if(motion_.blink_once)blink_at_=now;}
+    if(motion_changed&&motion_.blink_once)blink_at_=now;
     if(now>=blink_at_+240)blink_at_=now+static_cast<uint64_t>(((behavior_==Behavior::Listening?5000:3000)+NextRandom()%4000)/(motion_.active?std::max(.1f,motion_.blink):1.f));
     float blink=1;
     if(!forced_&&(!motion_.active||motion_.blink>0||motion_.blink_once)&&now>=blink_at_){float t=float(now-blink_at_);blink=t<70?1-t/70:std::min(1.f,(t-70)/170);}
-    const float audio=(behavior_==Behavior::Speaking&&now>=audio_at_&&now-audio_at_<160)?energy_:0;
+    const float audio=(!motion_.active&&behavior_==Behavior::Speaking&&now>=audio_at_&&now-audio_at_<160)?energy_:0;
     for(auto& e:target){
         e.height*=1+.12f*audio;
-        if(motion_.active){e.x+=motion_.look_x*12;e.y+=motion_.look_y*10;e.width*=motion_.scale;e.height*=motion_.scale;}
+        if(motion_.active){e.x+=motion_.look_x*18;e.y+=motion_.look_y*12;e.width*=motion_.scale;e.height*=motion_.scale;}
         if(!forced_){
             e.x+=1.6f*std::sin(float(now%20000)*.0007f);e.y+=.7f*std::sin(float(now%17000)*.001f);
             if(behavior_==Behavior::Listening&&!motion_.active)e.y-=3;
-            if(behavior_==Behavior::Waiting)e.y-=5;
-            if(behavior_==Behavior::Reconnecting)e.x+=5*std::sin(float(age%10000)*.0008f);
+            if(behavior_==Behavior::Waiting&&!motion_.active)e.y-=5;
+            if(behavior_==Behavior::Reconnecting&&!motion_.active)e.x+=5*std::sin(float(age%10000)*.0008f);
         }
     }
     float remaining=float(std::min<uint64_t>(now-last_,250))*.001f;
@@ -60,7 +63,7 @@ Frame EyesModel::Tick(uint64_t now) {
     last_=now;
     Frame f;f.pose=pose_;f.behavior=behavior_;
     for(size_t e=0;e<2;++e){auto p=current_[e];
-        p.x+=motion_shake_*2.8f*std::sin(float(now%10000)*.045f);p.y+=motion_shake_*1.6f*std::sin(float(now%10000)*.057f);
+        p.x+=motion_shake_*4.8f*std::sin(float(now%10000)*.045f);p.y+=motion_shake_*3.2f*std::sin(float(now%10000)*.057f);
         float wake=behavior_==Behavior::Waking?std::min(1.f,.45f+float(age)*.55f/300):1.f;
         p.height=std::max(5.f,p.height*blink*wake);
         for(size_t i=0;i<kContourPoints;++i){float theta=float(i)*6.28318530718f/kContourPoints;

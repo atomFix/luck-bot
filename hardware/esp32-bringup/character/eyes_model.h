@@ -32,7 +32,7 @@ public:
     Frame Tick(uint64_t now_ms);
 private:
     MotionCue motion_{};
-    float motion_shake_=0;uint32_t motion_key_=0;
+    float motion_shake_=0;uint32_t motion_key_=0;uint64_t motion_at_=0;
     uint32_t random_;
     uint32_t NextRandom();
     uint8_t emotion_ = 0, pose_ = 0;

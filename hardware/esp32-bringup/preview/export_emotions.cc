@@ -4,7 +4,7 @@ using namespace round_eyes;
 int main(){
  std::printf("{\"pose_count\":%zu,\"items\":[",kPoseCount);
  for(size_t n=0;n<kEmotions.size();++n){const auto& emotion=kEmotions[n];
-  if(n)std::printf(",");std::printf("{\"key\":\"%s\",\"poses\":[",emotion.key);
+  if(n)std::printf(",");std::printf("{\"key\":\"%s\",\"cycle_ms\":%u,\"poses\":[",emotion.key,emotion.cycle_ms);
   for(size_t j=0;j<emotion.count;++j){
    EyesModel model(42);model.ForcePose(emotion.ids[j],0);Frame frame;
    for(uint64_t t=0;t<=1600;t+=40)frame=model.Tick(t);

@@ -6,14 +6,14 @@ export type AnimationPlan=z.infer<typeof AnimationSchema>;
 export type AnimationStep=AnimationPlan['steps'][number];
 const step=(emotion:Emotion,duration_ms:number,motion:Partial<AnimationStep>={})=>StepSchema.parse({emotion,duration_ms,...motion});
 export const SCENES={
- horror:{label:'恐怖与警惕',steps:[step('confused',900,{look_x:-.3}),step('shocked',700,{scale:1.15,transition_ms:150}),step('shocked',1900,{scale:.75,shake:.8,blink:2}),step('angry',1000,{scale:.9}),step('surprised',2200,{scale:.82,shake:.25,look_x:.35}),step('thinking',2100,{scale:.95,blink:1.4}),step('neutral',2600,{transition_ms:1200})]},
- relief:{label:'虚惊一场',steps:[step('surprised',600),step('confused',800,{look_x:.4}),step('relaxed',2300,{transition_ms:900}),step('embarrassed',1600),step('neutral',1800,{transition_ms:1000})]},
- celebration:{label:'庆祝好消息',steps:[step('surprised',700,{scale:1.1}),step('happy',1400),step('laughing',1700,{scale:1.05}),step('winking',900),step('relaxed',2100),step('neutral',1600,{transition_ms:900})]},
- comfort:{label:'安慰与陪伴',steps:[step('thinking',900,{scale:.95}),step('sad',1100),step('loving',3400,{transition_ms:750,blink:.5}),step('loving',2500,{look_x:.15,blink:.6}),step('neutral',2000,{transition_ms:1200})]},
- teased:{label:'被逗后的反应',steps:[step('confused',800),step('embarrassed',1200),step('angry',600,{scale:.9}),step('silly',1500),step('winking',1100),step('relaxed',1900)]},
- problem:{label:'一起琢磨问题',steps:[step('thinking',2000,{look_x:.35,look_y:-.4}),step('confused',1000,{look_x:-.3}),step('surprised',650),step('confident',1800),step('winking',900),step('neutral',1700,{transition_ms:900})]},
- curious:{label:'好奇地观察',steps:[step('thinking',900,{look_x:-.4}),step('surprised',1500,{scale:1.1,look_x:.3}),step('confused',1200,{look_y:-.3}),step('surprised',2000,{look_x:0}),step('neutral',1900,{transition_ms:900})]},
- greeting:{label:'打招呼',steps:[step('surprised',500),step('happy',1300),step('winking',800),step('neutral',1600,{transition_ms:800})]},
+ horror:{label:'恐怖与警惕',steps:[step('confused',800,{look_x:-.65}),step('shocked',550,{scale:1.15,blink:0,transition_ms:150}),step('shocked',1700,{scale:.68,shake:1,blink:1.7}),step('angry',800,{scale:1.05,look_x:.15,transition_ms:150}),step('surprised',1500,{scale:.82,shake:.3,look_x:.6}),step('thinking',1800,{look_x:-.35,blink:1.4}),step('neutral',2200,{transition_ms:1200})]},
+ relief:{label:'虚惊一场',steps:[step('surprised',500,{scale:1.15}),step('confused',600,{look_x:.6}),step('relaxed',1800,{scale:.9,transition_ms:850}),step('embarrassed',1200,{scale:.8,look_x:-.4}),step('winking',650,{blink:0}),step('neutral',1800,{transition_ms:1000})]},
+ celebration:{label:'庆祝好消息',steps:[step('surprised',450,{scale:1.15,transition_ms:180}),step('happy',1050,{scale:1.16,look_y:-.45,transition_ms:180}),step('laughing',1600,{scale:1.18,shake:.18,blink:.4}),step('winking',850,{look_x:.55,blink:0}),step('happy',900,{scale:1.08}),step('relaxed',1500),step('neutral',1400,{transition_ms:900})]},
+ comfort:{label:'安慰与陪伴',steps:[step('thinking',700,{scale:.95,look_y:.25}),step('sad',800),step('loving',3000,{scale:1.12,look_y:.1,transition_ms:650,blink:.4}),step('loving',1800,{look_x:.4,blink:.5}),step('neutral',2000,{transition_ms:1200})]},
+ teased:{label:'被逗后的反应',steps:[step('confused',550,{scale:1.12}),step('embarrassed',1100,{scale:.76,look_x:-.65,look_y:.4}),step('angry',500,{scale:1.1,look_x:.25,transition_ms:150}),step('silly',1200,{scale:1.1,look_x:.55}),step('winking',900,{look_x:-.45,blink:0}),step('relaxed',1500)]},
+ problem:{label:'一起琢磨问题',steps:[step('thinking',1600,{look_x:.7,look_y:-.65,scale:1.02}),step('confused',850,{look_x:-.55}),step('surprised',450,{scale:1.15,transition_ms:160}),step('confident',1300,{scale:1.1,look_y:-.25}),step('winking',800),step('neutral',1600,{transition_ms:900})]},
+ curious:{label:'好奇地观察',steps:[step('thinking',650,{look_x:-.7}),step('surprised',1200,{scale:1.16,look_x:.55,look_y:-.35}),step('confused',900,{look_y:-.6,look_x:-.5}),step('surprised',1400,{look_x:.55,scale:1.1}),step('neutral',1700,{transition_ms:900})]},
+ greeting:{label:'打招呼',steps:[step('surprised',400,{scale:1.12,transition_ms:180}),step('happy',1100,{scale:1.16,look_y:-.3}),step('winking',750,{look_x:.55,blink:0}),step('neutral',1400,{transition_ms:800})]},
 } as const;
 export type Scene=keyof typeof SCENES;
 export function parseAnimationChoice(value:unknown):AnimationPlan{

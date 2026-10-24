@@ -1,4 +1,5 @@
-import {reactionAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,type AnimationPlan} from './animation.js';
+import {setTimeout as animationDelay} from 'node:timers/promises';
+import {reactionAnimation,socialAnimation,primaryEmotion,animationSource,animationPosition,paceAnimation,animationReplacementDelay,conversationalAnimation,type AnimationPlan} from './animation.js';
 import {performReaction} from './reaction-performance.js';
 import {localReaction,requestedExpression} from './fast-reaction.js';
 import { currentJournal } from "../ledger/journal.js";
@@ -52,7 +53,7 @@ export class VoicePipeline {
   clearSpeaker(id: string) {
     this.speakerHistory.delete(id);this.animationStates.delete(id);
   }
-  async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>, local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}) {
+  async expression(pcm: Uint8Array, id: number, speaker: string, beforeApply?: (signal:AbortSignal)=>Promise<void>, local?:{text?:string;fast:boolean;asr_ms?:number;model?:string;continued?:boolean}) {
     if(this.options.animations&&this.options.device.animate&&this.options.brain.animation)return this.animatedExpression(pcm,id,speaker,local);
     const turn = await this.begin(id);
     // begin() may cancel the previous turn, clearing its temporary eye layer.
@@ -108,21 +109,44 @@ export class VoicePipeline {
     } finally {stopThinking();}
   }
 
-  private async animatedExpression(pcm:Uint8Array,id:number,speaker:string,local?:{text?:string;fast:boolean;asr_ms?:number;model?:string}){
-    // Advancing the semantic turn must not cancel the previous board animation.
+  private async animatedExpression(pcm:Uint8Array,id:number,speaker:string,local?:{text?:string;fast:boolean;asr_ms?:number;model?:string;continued?:boolean}){
+    // Advancing a semantic turn aborts stale work, without cancelling visible board motion.
     const turn=this.turns.start(id);await this.options.thinking?.();this.check(turn);
     const began=performance.now();const text=local?.text??await this.options.asr.transcribe(wav16k(pcm),turn.signal);this.check(turn);
     currentJournal()?.patch({user_text:text||null,device_turn:turn.id});
     const meta={event:local?.text!==undefined?'asr.local.done':'asr.done',turn:turn.id,duration_ms:local?.asr_ms??Math.round(performance.now()-began),model:local?.model??this.options.asrModel};
     if(this.options.diagnose)this.options.diagnose(meta);else currentJournal()?.event(meta);
     if(!text.trim())return;
-    let history=this.speakerHistory.get(speaker);if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(64,16000);this.speakerHistory.set(speaker,history);}
-    const quick=local?.fast?localReaction(text,history.snapshot()):null;
-    const context=history.snapshot(),previous=this.animationStates.get(speaker);
-    if(previous)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(animationPosition(previous.plan,Math.round(performance.now()-previous.at)))});
-    const plan=quick?(requestedExpression(text)?reactionAnimation(quick):socialAnimation(quick,text)):await this.options.brain.animation!(text,context,turn.signal);this.check(turn);
+    let previous=this.animationStates.get(speaker);
+    if(previous&&performance.now()-previous.at>60000){this.speakerHistory.delete(speaker);this.animationStates.delete(speaker);previous=undefined;}
+    let history=this.speakerHistory.get(speaker);
+    if(!history){if(this.speakerHistory.size>=10)this.speakerHistory.delete(this.speakerHistory.keys().next().value!);history=new History(12,6000);this.speakerHistory.set(speaker,history);}
+    const position=previous?animationPosition(previous.plan,Math.round(performance.now()-previous.at)):undefined;
+    const requested=requestedExpression(text);
+    const conversation=requested?null:conversationalAnimation(text,position?.step?position.emotion:'neutral');
+    const quick=requested??(local?.fast?localReaction(text,history.snapshot()):null);
+    const context=history.snapshot();
+    if(position)context.push({role:'assistant',content:'当前板端动画状态：'+JSON.stringify(position)});
+    context.push({role:'user',content:local?.continued?'本次是连续讲述中的时间窗口，句子可能未说完；只回应已经明确的内容，不推断结局。':'本次在自然停顿后识别；不把缺少含义的残句猜成完整故事。'});
+    const chosen=conversation??(quick?(requested?reactionAnimation(quick):socialAnimation(quick,text)):await this.options.brain.animation!(text,context,turn.signal));this.check(turn);
+    const plan=requested?chosen:paceAnimation(chosen);
+    const elapsed=previous?Math.round(performance.now()-previous.at):0;
+    const remaining=previous?previous.plan.steps.reduce((n,s)=>n+s.duration_ms,0)-elapsed:0;
+    const current=previous?animationPosition(previous.plan,elapsed):undefined;
+    // Repeated context may confirm the same scene; don't replay its emotional opening.
+    if(!requested&&!conversation&&previous&&remaining>=1400&&current?.step&&current.emotion!=='neutral'&&JSON.stringify(plan)===JSON.stringify(previous.plan)){
+      await currentJournal()?.saveAnimation(previous.plan,'continued');
+      const event={event:'animation.continued',turn:turn.id,code:plan.scene};
+      if(this.options.diagnose)this.options.diagnose(event);else currentJournal()?.event(event);
+      currentJournal()?.patch({emotion:current.emotion,hold_ms:Math.round(remaining)});
+      history.add(text,'表情：'+current.emotion+'；动画：'+plan.scene+'；延续当前阶段');
+      return {emotion:current.emotion,hold_ms:Math.round(remaining)};
+    }
+    // A bounded pause protects the current pose, without queueing an obsolete full scene.
+    const buffer=!requested&&!conversation&&previous?animationReplacementDelay(previous.plan,elapsed):0;
+    if(buffer){const start=performance.now();await animationDelay(buffer,undefined,{signal:turn.signal});this.check(turn);const event={event:'animation.display_buffer',turn:turn.id,duration_ms:Math.round(performance.now()-start)};if(this.options.diagnose)this.options.diagnose(event);else currentJournal()?.event(event);}
     const emotion=primaryEmotion(plan),duration=plan.steps.reduce((n,s)=>n+s.duration_ms,0);
-    await currentJournal()?.saveAnimation(plan,quick?'local':animationSource(plan));
+    await currentJournal()?.saveAnimation(plan,conversation?'context':quick?'local':animationSource(plan));
     const started=performance.now();await this.options.device.animate!(plan,turn);this.check(turn);
     if(this.animationStates.size>=10&&!this.animationStates.has(speaker))this.animationStates.delete(this.animationStates.keys().next().value!);this.animationStates.set(speaker,{plan,at:performance.now()});
     const event={event:'animation.applied',turn:turn.id,duration_ms:Math.round(performance.now()-started),code:plan.scene};

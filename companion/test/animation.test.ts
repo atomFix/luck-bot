@@ -25,3 +25,31 @@ test('animation ledger preserves exact primitive steps after reopening and casca
  await db.call('beginTurn',{id:'t',mode:'ambient',started_at:1});const plan=parseAnimationChoice({preset:'horror'});await db.call('saveAnimation',{turn_id:'t',plan,source:'preset'});await db.close();db=await Ledger.open(join(dir,'db'));assert.deepEqual((await db.call('detail',{id:'t'})).animation.plan,plan);const p=await db.call('clear',{before:10,scope:'all'});await db.call('clear',{before:10,scope:'all',confirm:p.confirmation});assert.equal((await db.call('list',{})).total,0);
  }finally{await db.close();await rm(dir,{recursive:true,force:true});}
 });
+
+test('automatic animation pacing leaves a readable hold and stays within the 30 second device budget',async()=>{
+ const {paceAnimation,animationReplacementDelay}=await import('../src/voice/animation.js');
+ const raw=parseAnimationChoice({scene:'rapid',steps:Array.from({length:12},(_,i)=>({emotion:i%2?'thinking':'surprised',duration_ms:i%2?4500:200,transition_ms:150}))});
+ const paced=paceAnimation(raw);assert.equal(paced.steps.length,12);assert(paced.steps.every(s=>s.duration_ms>=2200&&s.duration_ms-s.transition_ms>=1000));assert(paced.steps.reduce((n,s)=>n+s.duration_ms,0)<=30000);
+ const p=parseAnimationChoice({preset:'celebration'});assert.equal(animationReplacementDelay(p,0),600);assert.equal(animationReplacementDelay(p,1500),300);assert.equal(animationReplacementDelay(p,2000),0);assert.equal(animationReplacementDelay(p,999999),0);
+});
+
+test('criticism and hearing checks have grounded acknowledgements and no playful detours',async()=>{
+ const {conversationalAnimation,socialAnimation}=await import('../src/voice/animation.js');
+ for(const text of ['你乱回啊','你现在能听到我说什么东西吗？','我刚才说的不是这个意思']){
+  const plan=conversationalAnimation(text);assert(plan);assert(plan.steps.every(s=>['thinking','neutral'].includes(s.emotion)),text);
+ }
+ assert.equal(conversationalAnimation('你现在什么表情？','loving')!.steps[0]!.emotion,'loving');
+ assert.equal(conversationalAnimation('他说你乱回啊，后来又讲了一个好消息'),null);
+ assert(socialAnimation({emotion:'loving',hold_ms:2500},'我很累').steps.every(s=>['loving','neutral'].includes(s.emotion)));
+ for(const scene of ['horror','teased','problem'] as const)assert(!SCENES[scene].steps.some(s=>s.emotion==='angry'||s.emotion==='confident'));
+});
+
+test('continuing the same scene keeps its current phase and repairs bypass a playful plan',async()=>{
+ const sent:any[]=[],events:any[]=[];let calls=0;
+ const p=new VoicePipeline({animations:true,diagnose:(e:{event:string})=>events.push(e),brain:{animation:async()=>{calls++;return parseAnimationChoice({preset:'horror'});}},device:{animate:async(plan:any)=>{sent.push(plan);return {command_id:'a',applied_uptime_ms:0};},cancel:async()=>{}},asr:{},tts:{},output:{cancel:async()=>{}}}as any);
+ await p.expression(new Uint8Array(),1,'owner',undefined,{text:'黑暗中门外传来脚步声',fast:false,continued:true});
+ await p.expression(new Uint8Array(),2,'owner',undefined,{text:'脚步声还在门口徘徊',fast:false,continued:true});
+ assert.equal(calls,2);assert.equal(sent.length,1);assert(events.some(e=>e.event==='animation.continued'));
+ await p.expression(new Uint8Array(),3,'owner',undefined,{text:'我刚才说的不是这个意思',fast:false});
+ assert.equal(calls,2);assert.equal(sent.at(-1).scene,'repair');assert.equal(sent.at(-1).steps[0].emotion,'thinking');
+});

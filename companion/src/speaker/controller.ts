@@ -2,10 +2,10 @@ import type {LocalAsr,LocalTranscript} from '../voice/local-asr.js';
 import type {AudioFrame} from '../contracts.js';import type {DeviceConnection} from '../device/client.js';import type {TurnJournal} from '../ledger/journal.js';import {SpeechEndpoint,type SpeechScorer} from '../voice/endpoint.js';import {AmbientSegmenter} from './segmenter.js';
 export type ListeningSettings={enabled:boolean;speaker_filter?:boolean;wait_seconds:number;silence_ms:number;threshold:number;margin:number};
 type Person={id:string;name:string;enabled:boolean};type Match={id:string;name:string;score:number};
-type Options={now?:()=>number;settings:()=>ListeningSettings;saveSettings:(patch:Partial<ListeningSettings>)=>Promise<unknown>;device:()=>DeviceConnection|undefined;profiles:{list():Promise<Person[]>;match(v:number[],threshold?:number,margin?:number):Promise<Match|null>;add(name:string,samples:number[][]):Promise<{id:string}>;remove(id:string):Promise<void>;setEnabled(id:string,value:boolean):Promise<void>};extractor:{ready():Promise<void>;embed(pcm:Uint8Array,signal:AbortSignal):Promise<number[]>;status:{ready:boolean;error:string;model:string}};journal?:TurnJournal;canProcess:()=>boolean;expression:(pcm:Uint8Array,person:Match,signal:AbortSignal,transcript?:LocalTranscript)=>Promise<unknown>;localAsr?:Pick<LocalAsr,'ready'|'start'|'push'|'finish'|'cancel'>;useLocalAsr?:()=>boolean;segmenter?:()=>AmbientSegmenter;enrollmentScorer?:()=>SpeechScorer};
+type Options={now?:()=>number;settings:()=>ListeningSettings;saveSettings:(patch:Partial<ListeningSettings>)=>Promise<unknown>;device:()=>DeviceConnection|undefined;profiles:{list():Promise<Person[]>;match(v:number[],threshold?:number,margin?:number):Promise<Match|null>;add(name:string,samples:number[][]):Promise<{id:string}>;remove(id:string):Promise<void>;setEnabled(id:string,value:boolean):Promise<void>};extractor:{ready():Promise<void>;embed(pcm:Uint8Array,signal:AbortSignal):Promise<number[]>;status:{ready:boolean;error:string;model:string}};journal?:TurnJournal;canProcess:()=>boolean;expression:(pcm:Uint8Array,person:Match,signal:AbortSignal,transcript?:LocalTranscript,segment?:{continued:boolean})=>Promise<unknown>;localAsr?:Pick<LocalAsr,'ready'|'start'|'push'|'finish'|'cancel'>;useLocalAsr?:()=>boolean;segmenter?:()=>AmbientSegmenter;enrollmentScorer?:()=>SpeechScorer};
 export const AMBIENT_MIN_INTERVAL_MS=500;
 export const AMBIENT_MAX_PER_MINUTE=60;
-type Candidate={poseVersion:number;asr?:{result:Promise<LocalTranscript>;cancel:()=>void};pcm:Uint8Array;voiced_ms:number;record?:Promise<string>;generation:number};
+type Candidate={continued?:boolean;poseVersion:number;asr?:{result:Promise<LocalTranscript>;cancel:()=>void};pcm:Uint8Array;voiced_ms:number;record?:Promise<string>;generation:number};
 type Enrollment={name:string;vectors:number[][];state:string;until:number;enableAfter:boolean;error:string;pcm:Uint8Array[];bytes:number;endpoint:SpeechEndpoint;abort:AbortController;timer?:ReturnType<typeof setTimeout>};
 export class SpeakerController {
  private localCapture?:{id:number;abort:AbortController};private localStreams=new Map<number,AbortController>();
@@ -59,7 +59,7 @@ export class SpeakerController {
    if(candidate.generation!==this.generation)throw new Error('cancelled');
    if(transcript&&!transcript.text.trim()){await ignored('no_speech');return;}
    this.lastCloud=time;this.cloudTimes.push(time);
-   await this.options.expression(candidate.pcm,person,abort.signal,transcript);handled=true;
+   await this.options.expression(candidate.pcm,person,abort.signal,transcript,{continued:candidate.continued===true});handled=true;
   };
   try{if(id&&this.options.journal)await this.options.journal.runExisting(id,run);else await run();}finally{candidate.asr?.cancel();if(!handled&&candidate.generation===this.generation&&candidate.poseVersion===this.poseVersion&&!this.listening&&this.options.canProcess()){await this.options.device()?.processingPose(false);}}
  }

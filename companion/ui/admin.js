@@ -352,7 +352,7 @@
       call.append(payloadView("发送给大模型的数据",a.payload?.request),payloadView("大模型返回的数据",a.payload?.response));host.append(call);
     });
     if(d.animation){
-      host.append(node('h3','组合动画时间线'),node('p',`场景：${d.animation.plan.scene} · 来源：${({preset:'场景预设',model:'模型编排',local:'本地编排',replay:'手动重放'})[d.animation.source]??d.animation.source} · 共 ${d.animation.plan.steps.length} 步`));
+      host.append(node('h3','组合动画时间线'),node('p',`场景：${d.animation.plan.scene} · 来源：${({preset:'场景预设',model:'模型编排',local:'本地编排',replay:'手动重放',continued:'延续当前动画',context:'对话状态回应'})[d.animation.source]??d.animation.source} · 共 ${d.animation.plan.steps.length} 步`));
       const timeline=node('div',null,'table-wrap');
       table(timeline,['步骤 / 时长','眼型','看向 X / Y','大小','抖动 / 眨眼 / 过渡'],d.animation.plan.steps.map((s,i)=>[`${i+1} · ${s.duration_ms} ms`,window.RoundEyesEmotionUI.badge(s.emotion),`${s.look_x} / ${s.look_y}`,s.scale,`${s.shake} / ${s.blink}${s.blink_once?"（眨一下）":""} / ${s.transition_ms} ms`]));host.append(timeline,window.RoundEyesEmotionUI.animation(d.animation.plan));
       const replay=node('button','在板子上重放动画');replay.onclick=async()=>{replay.disabled=true;try{await api.call('animation',{plan:d.animation.plan});api.notify('动画已交给板子播放');}catch(e){fail(e);}finally{replay.disabled=false;}};host.append(replay);

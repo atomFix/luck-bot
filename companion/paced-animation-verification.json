@@ -1,0 +1,250 @@
+{
+  "date": "2026-10-24",
+  "change": "Readable scene pacing and grounded conversational responses",
+  "firmware": {
+    "offset": "0x700000",
+    "active_slot": 1,
+    "firmware_bytes": 3592496,
+    "sha256": "784101a0dbac5ca103302595bee2208fa514630dc2aaad2a542e3f2fedc7375c",
+    "flash_verified": true
+  },
+  "pacing": {
+    "automatic_non_neutral_min_hold_ms": 2200,
+    "automatic_transition_ms": [
+      600,
+      1200
+    ],
+    "replacement_buffer_max_ms": 600,
+    "same_active_plan": "continue visible phase rather than restart",
+    "semantic_history_max_messages": 12,
+    "semantic_history_reset_after_idle_ms": 60000,
+    "preset_phase_count": [
+      3,
+      4
+    ]
+  },
+  "checks": {
+    "typescript_tests_passed": 156,
+    "typescript_check": true,
+    "native_suites_passed": 8,
+    "native_catalog_check": true,
+    "signed_app_installed": true,
+    "pairing_preserved": true,
+    "semantic_cases": [
+      {
+        "id": "hearing",
+        "turn_id": "5ec0464b-c159-4aa3-81b4-334fd186009d",
+        "source": "context",
+        "scene": "acknowledge",
+        "emotions": [
+          "neutral"
+        ],
+        "steps": [
+          {
+            "emotion": "neutral",
+            "duration_ms": 3000,
+            "transition_ms": 650
+          }
+        ],
+        "latency_ms": 130,
+        "pass": true,
+        "provider_attempts": 0,
+        "recorded_usage": []
+      },
+      {
+        "id": "criticism",
+        "turn_id": "e612109b-dba9-41e2-829f-5d9d1acca8c7",
+        "source": "model",
+        "scene": "listening",
+        "emotions": [
+          "thinking"
+        ],
+        "steps": [
+          {
+            "emotion": "thinking",
+            "duration_ms": 3600,
+            "transition_ms": 850
+          }
+        ],
+        "latency_ms": 1581,
+        "pass": true,
+        "provider_attempts": 1,
+        "recorded_usage": [
+          {
+            "metric": "cache_hit_tokens",
+            "value": 0
+          },
+          {
+            "metric": "cache_miss_tokens",
+            "value": 1070
+          },
+          {
+            "metric": "input_tokens",
+            "value": 1070
+          },
+          {
+            "metric": "output_tokens",
+            "value": 54
+          },
+          {
+            "metric": "total_tokens",
+            "value": 1124
+          }
+        ]
+      },
+      {
+        "id": "comfort",
+        "turn_id": "d06c554d-d1f8-4601-94e1-60970d707ddc",
+        "source": "model",
+        "scene": "comfort",
+        "emotions": [
+          "thinking",
+          "loving"
+        ],
+        "steps": [
+          {
+            "emotion": "thinking",
+            "duration_ms": 2600,
+            "transition_ms": 800
+          },
+          {
+            "emotion": "loving",
+            "duration_ms": 3800,
+            "transition_ms": 900
+          }
+        ],
+        "latency_ms": 1665,
+        "pass": true,
+        "provider_attempts": 1,
+        "recorded_usage": [
+          {
+            "metric": "cache_hit_tokens",
+            "value": 768
+          },
+          {
+            "metric": "cache_miss_tokens",
+            "value": 334
+          },
+          {
+            "metric": "input_tokens",
+            "value": 1102
+          },
+          {
+            "metric": "output_tokens",
+            "value": 82
+          },
+          {
+            "metric": "total_tokens",
+            "value": 1184
+          }
+        ]
+      },
+      {
+        "id": "unfinished",
+        "turn_id": "0a958388-0631-4db6-b071-9464b25254ed",
+        "source": "model",
+        "scene": "horror",
+        "emotions": [
+          "shocked"
+        ],
+        "steps": [
+          {
+            "emotion": "shocked",
+            "duration_ms": 2800,
+            "transition_ms": 800
+          }
+        ],
+        "latency_ms": 1817,
+        "pass": true,
+        "provider_attempts": 1,
+        "recorded_usage": [
+          {
+            "metric": "cache_hit_tokens",
+            "value": 768
+          },
+          {
+            "metric": "cache_miss_tokens",
+            "value": 372
+          },
+          {
+            "metric": "input_tokens",
+            "value": 1140
+          },
+          {
+            "metric": "output_tokens",
+            "value": 61
+          },
+          {
+            "metric": "total_tokens",
+            "value": 1201
+          }
+        ]
+      },
+      {
+        "id": "relief",
+        "turn_id": "38f5ca63-4b1c-4acf-b745-8aae19348886",
+        "source": "preset",
+        "scene": "relief",
+        "emotions": [
+          "confused",
+          "relaxed",
+          "neutral"
+        ],
+        "steps": [
+          {
+            "emotion": "confused",
+            "duration_ms": 2200,
+            "transition_ms": 750
+          },
+          {
+            "emotion": "relaxed",
+            "duration_ms": 4000,
+            "transition_ms": 1100
+          },
+          {
+            "emotion": "neutral",
+            "duration_ms": 2600,
+            "transition_ms": 1200
+          }
+        ],
+        "latency_ms": 1551,
+        "pass": true,
+        "provider_attempts": 1,
+        "recorded_usage": [
+          {
+            "metric": "cache_hit_tokens",
+            "value": 1024
+          },
+          {
+            "metric": "cache_miss_tokens",
+            "value": 159
+          },
+          {
+            "metric": "input_tokens",
+            "value": 1183
+          },
+          {
+            "metric": "output_tokens",
+            "value": 7
+          },
+          {
+            "metric": "total_tokens",
+            "value": 1190
+          }
+        ]
+      }
+    ]
+  },
+  "renderer": {
+    "capture_seconds": 60,
+    "samples": 5,
+    "refresh_fps_min": 26.0,
+    "refresh_fps_max": 26.7,
+    "panic_detected": false
+  },
+  "limits": [
+    "Five live semantic cases used typed text through the installed program; they do not validate microphone recognition accuracy.",
+    "New physical pacing and appropriateness in live conversation await user feedback.",
+    "A short firmware smoke run does not replace long-term voice stability acceptance."
+  ]
+}

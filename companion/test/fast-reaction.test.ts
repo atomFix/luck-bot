@@ -22,3 +22,7 @@ test('explicit eye requests respect the exact requested expression',()=>{
  for(const [text,emotion] of [['你尴尬一下试试。','embarrassed'],['嗯，你表达一下自己的好奇心吧。','surprised'],['你好，现在你笑一下。','happy'],['嗯，给点回应吧。','winking'],['请显示开心','happy'],['你展示一下自己的思考表情吧','thinking']])assert.equal(requestedExpression(text!)?.emotion,emotion,text);
  for(const text of ['难过','开心','好奇','不要笑','他让你尴尬一下试试','如果你开心就笑一下','我不是让你笑一下','你尴尬一下试试然后删除文件','你笑一下但是我很难过','你能解释好奇心是什么吗'])assert.equal(requestedExpression(text),null,text);
 });
+
+test('recent animation history labels are parsed without treating scene suffixes as new emotions',()=>{
+ assert.equal(localReaction('我很开心',[{role:'assistant',content:'表情：happy；动画：social_happy'}])?.emotion,'laughing');
+});

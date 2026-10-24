@@ -16,8 +16,8 @@ export function localReaction(input:string,history:Message[]=[]):Reaction|null {
  if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
  const text=input.replace(/[\s，,。.!！、]/gu,'');
  const finish=(choices:Emotion[]):Reaction=>{
-  const recent=history.filter(m=>m.role==='assistant').slice(-2).map(m=>m.content);
-  const emotion=choices.find(e=>!recent.includes(`表情：${e}`))??choices.find(e=>recent.at(-1)!==`表情：${e}`)??choices[0]!;
+  const recent=history.filter(m=>m.role==='assistant').slice(-2).map(m=>/^表情：([a-z]+)/.exec(m.content)?.[1]);
+  const emotion=choices.find(e=>!recent.includes(e))??choices.find(e=>recent.at(-1)!==e)??choices[0]!;
   return {emotion,hold_ms:2500};
  };
  // Exact social exchanges are safe even when their natural wording contains a question.

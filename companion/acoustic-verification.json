@@ -1,0 +1,196 @@
+{
+  "date": "2026-10-24T02:23:08.495Z",
+  "status": "failed",
+  "method": "Mac say Tingting -> physical board mic -> installed Companion -> Mac output; no volume or route changes",
+  "rounds": [
+    {
+      "index": 1,
+      "status": "passed",
+      "events": [
+        {
+          "event": "capture.started",
+          "turn": 1
+        },
+        {
+          "event": "utterance.ended",
+          "turn": 1,
+          "duration_ms": 4801,
+          "bytes": 151040
+        },
+        {
+          "event": "asr.done",
+          "turn": 1,
+          "duration_ms": 1879
+        },
+        {
+          "event": "reaction.ready",
+          "turn": 1,
+          "duration_ms": 642
+        },
+        {
+          "event": "reaction.applied",
+          "turn": 1,
+          "duration_ms": 72
+        },
+        {
+          "event": "reply.first_token",
+          "turn": 1,
+          "duration_ms": 626
+        },
+        {
+          "event": "tts.first_audio",
+          "turn": 1,
+          "duration_ms": 432
+        },
+        {
+          "event": "playback.started",
+          "turn": 1,
+          "duration_ms": 219
+        },
+        {
+          "event": "reply.completed",
+          "turn": 1,
+          "duration_ms": 8029
+        }
+      ],
+      "turn": 1,
+      "wake_ms": 1749
+    },
+    {
+      "index": 2,
+      "status": "passed",
+      "events": [
+        {
+          "event": "capture.started",
+          "turn": 2
+        },
+        {
+          "event": "utterance.ended",
+          "turn": 2,
+          "duration_ms": 4880,
+          "bytes": 153600
+        },
+        {
+          "event": "asr.done",
+          "turn": 2,
+          "duration_ms": 1541
+        },
+        {
+          "event": "reaction.ready",
+          "turn": 2,
+          "duration_ms": 820
+        },
+        {
+          "event": "reaction.applied",
+          "turn": 2,
+          "duration_ms": 60
+        },
+        {
+          "event": "reply.first_token",
+          "turn": 2,
+          "duration_ms": 651
+        },
+        {
+          "event": "tts.first_audio",
+          "turn": 2,
+          "duration_ms": 693
+        },
+        {
+          "event": "playback.started",
+          "turn": 2,
+          "duration_ms": 239
+        },
+        {
+          "event": "reply.completed",
+          "turn": 2,
+          "duration_ms": 7050
+        }
+      ],
+      "turn": 2,
+      "wake_ms": 1850
+    },
+    {
+      "index": 3,
+      "status": "failed",
+      "events": [
+        {
+          "event": "capture.started",
+          "turn": 3
+        }
+      ],
+      "turn": 3,
+      "wake_ms": 1950
+    }
+  ],
+  "duration_ms": 125955,
+  "boot_id": "577808016bb31a63",
+  "code": "no_speech",
+  "planned_rounds": 10,
+  "completed_rounds": 2,
+  "unattempted_rounds": 7,
+  "note": "Stopped at first no_speech. Third turn woke and streamed PCM but did not enter ASR. Ten-round/ten-minute acceptance failed; no automatic paid retries. Isolated local diagnostic afterward passed speech detection; root cause remains unconfirmed.",
+  "device_telemetry": {
+    "status": "partial",
+    "samples": 29,
+    "observed_span_ms": 280540,
+    "update_fps_min": 25.0,
+    "update_fps_max": 26.8,
+    "update_max_us": 111559,
+    "min_heap_bytes": 7737904,
+    "fatal_markers": 0,
+    "note": "Includes passive idle time after acoustic test stopped and one isolated diagnostic; not ten-minute continuous conversation acceptance."
+  },
+  "isolated_diagnostic": {
+    "bytes": 180480,
+    "say_start_ms": 25,
+    "say_end_ms": 3314,
+    "max_probability": 0.9809417128562927,
+    "max_high_run": 12,
+    "note": "Same third sentence, Mac say -> live board mic -> local Silero only. No raw audio saved and no cloud calls. Does not resolve the original intermittent failure."
+  },
+  "latency_ms": {
+    "utterance.ended": {
+      "n": 2,
+      "p50": 4801,
+      "p95": 4880
+    },
+    "asr.done": {
+      "n": 2,
+      "p50": 1541,
+      "p95": 1879
+    },
+    "reaction.ready": {
+      "n": 2,
+      "p50": 642,
+      "p95": 820
+    },
+    "reaction.applied": {
+      "n": 2,
+      "p50": 60,
+      "p95": 72
+    },
+    "reply.first_token": {
+      "n": 2,
+      "p50": 626,
+      "p95": 651
+    },
+    "tts.first_audio": {
+      "n": 2,
+      "p50": 432,
+      "p95": 693
+    },
+    "playback.started": {
+      "n": 2,
+      "p50": 219,
+      "p95": 239
+    },
+    "reply.completed": {
+      "n": 2,
+      "p50": 7050,
+      "p95": 8029
+    }
+  },
+  "latency_note": "Nearest rank over only two completed rounds; insufficient for stable latency percentiles. Capture duration includes speaking; Mac playback callback observes first buffer played, not external acoustic latency.",
+  "app_source_base": "44d05f338ea94990f68eb0b4db6af77fa6fa9c39 + diagnostic changes in this commit",
+  "firmware_sha256": "8cdd41040cddf60b31f9f3d5bcd1582e8582e4bbd0f73f9dbfd00ce428cec0f7"
+}

@@ -21,3 +21,9 @@ test('a slow cancellation cannot make an older input become the newest turn',asy
  const pipeline=new VoicePipeline({brain:{reaction:async text=>({emotion:text==='old'?'angry':'happy',hold_ms:1200}),reply:async function*(){yield '好。';}},device:{react:async value=>{applied.push(value.emotion);return {command_id:'c',applied_uptime_ms:1};},cancel:async()=>{},release:async()=>{},status:async()=>({}) as any,play:async()=>{}},asr:{transcribe:async()=>''},tts:{synthesize:async function*(){}},output:{play:async()=>{},cancel:async()=>{if(++cancelCount===1)await cancellation.promise;}}});
  await pipeline.text('base');const old=pipeline.text('old').catch(()=>{});await new Promise(r=>setImmediate(r));await pipeline.text('new');cancellation.resolve();await old;assert.deepEqual(applied,['happy','happy']);
 });
+
+test('diagnostics record first TTS audio and completion only after output drains',async()=>{
+ const events:string[]=[];
+ const pipeline=new VoicePipeline({diagnose:e=>events.push(e.event),brain:{reaction:async()=>({emotion:'happy',hold_ms:1000}),reply:async function*(){yield '你好。';yield '再见。';}},device:{react:async()=>({command_id:'c',applied_uptime_ms:1}),cancel:async()=>{}} as any,asr:{} as any,tts:{synthesize:async function*(){yield new Uint8Array(2);yield new Uint8Array(2);}},output:{play:async()=>{},cancel:async()=>{},finish:async()=>{events.push('drained');}}});
+ await pipeline.text('你好');assert.deepEqual(events,['reaction.ready','reaction.applied','reply.first_token','tts.first_audio','drained','reply.completed']);
+});

@@ -21,3 +21,8 @@ test('host silence decision stops the board and starts recognition without a dev
  await new Promise(r=>setImmediate(r));assert(f.wire.commands.some(c=>c.type==='cancel'&&c.turn_seq===1));assert.equal(reads,1);
  }finally{await f.cleanup();}
 });
+
+test('a fresh hardware capture clears a previous no-speech error and records its turn',async()=>{
+ const f=await fixture(async()=>null,()=>({push:async()=>{throw new Error('no_speech');}}));
+ try{f.wire.event({type:'utterance.start',turn_seq:1});f.wire.emit('message',encodeAudio({stream_id:1,frame_seq:0,turn_seq:1,end:false,sample_rate_khz:16,pcm:new Uint8Array(640)}),true);await new Promise(r=>setImmediate(r));assert.equal((await f.app.action('status',{})).lastError,'no_speech');f.wire.event({type:'utterance.start',turn_seq:2});const state=await f.app.action('status',{});assert.equal(state.lastError,'');assert(state.events.some((e:any)=>e.event==='capture.started'&&e.turn===2));}finally{await f.cleanup();}
+});

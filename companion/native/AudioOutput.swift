@@ -16,8 +16,11 @@ import AVFoundation
     let start=carry.startIndex
     for i in 0..<count {let raw=UInt16(carry[start+2*i])|UInt16(carry[start+2*i+1])<<8;out[0][i]=Float(Int16(bitPattern:raw))/32768}
     carry.removeFirst(count*2);drained.enter()
-    player.scheduleBuffer(buffer,completionCallbackType:.dataPlayedBack){_ in slots.signal();drained.leave()}
-    if first {FileHandle.standardOutput.write(Data("playback.started\n".utf8));first=false}
+    let isFirst=first;first=false
+    player.scheduleBuffer(buffer,completionCallbackType:.dataPlayedBack){_ in
+     if isFirst {FileHandle.standardOutput.write(Data("playback.started\n".utf8))}
+     slots.signal();drained.leave()
+    }
    }
    guard drained.wait(timeout:.now()+3) == .success else {exit(1)}
    player.stop();engine.stop()

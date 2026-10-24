@@ -1,5 +1,5 @@
 import {SpeechEndpoint} from './voice/endpoint.js';
-type VoiceCapture={turn:number;buffer:UtteranceBuffer;endpoint:{push(pcm:Uint8Array):Promise<boolean>};work:Promise<void>;pending:number};
+type VoiceCapture={turn:number;buffer:UtteranceBuffer;endpoint:{push(pcm:Uint8Array):Promise<boolean>};work:Promise<void>;pending:number;began:number};
 import {ReconnectLoop} from './device/reconnect.js';import type {PairingRecord} from './device/pinned-transport.js';import {setLoginStart,loginStartEnabled} from './local/login.js';import type {Secrets,EventMeta} from './contracts.js';import {SettingsStore,type Settings} from './local/settings.js';import {connect,DeviceConnection} from './device/client.js';import {discover} from './device/discovery.js';import {pairUsb} from './device/usb-pair.js';import {DeepSeekBrain} from './providers/deepseek.js';import {SpeechRegistry} from './providers/registry.js';import {minimaxAdapter} from './providers/minimax.js';import {VoicePipeline} from './voice/pipeline.js';import {DeviceOutput} from './voice/output.js';import {MacOutput} from './voice/mac-output.js';import {UtteranceBuffer} from './voice/utterance.js';import {parseReaction} from './protocol/schema.js';import {logEvent} from './diagnostics.js';
 export class Companion {
  private config!:Settings;private connection?:DeviceConnection;private pipeline?:VoicePipeline;private pipelinePromise?:Promise<VoicePipeline>;private epoch=0;private registry=new SpeechRegistry();private events:EventMeta[]=[];private pairing='idle';private lastReply='';private lastError='';private voice?:VoiceCapture;private busy=false;private activeVoice=0;private manualUntil=0;private desired?:string;private retry?:ReconnectLoop<DeviceConnection>;private attempt?:AbortController;private connectionGeneration=0;
@@ -10,7 +10,7 @@ export class Companion {
  async state(){return {installed:!!process.env.ROUND_EYES_APP_PATH,login_start:await loginStartEnabled(),settings:this.config,connected:!!this.connection,device:this.connection?.info??null,pairing:this.pairing,lastReply:this.lastReply,lastError:this.lastError,events:this.events,capabilities:{asr:await this.registry.capabilities(this.config.speech.asr,new AbortController().signal),tts:await this.registry.capabilities(this.config.speech.tts,new AbortController().signal)}};}
  private needDevice(id?:string){if(!this.connection||(id&&id!==this.connection.info.device_id))throw new Error('device_offline');return this.connection;}
  private async buildPipeline(){const epoch=this.epoch;const connection=this.needDevice();const key=await this.secrets.get('provider/deepseek');if(!key)throw new Error('credential_missing');if(epoch!==this.epoch||connection!==this.connection)throw new Error('stale');const speech=this.registry.resolve(this.config.speech,this.secrets);
-  this.pipeline=new VoicePipeline({brain:new DeepSeekBrain({key,model:this.config.deepseek_model,diagnose:this.diagnose}),device:connection,...speech,output:this.config.output==='mac'?new MacOutput():new DeviceOutput(connection),diagnose:this.diagnose,onReply:text=>this.lastReply=text});return this.pipeline;
+  this.pipeline=new VoicePipeline({brain:new DeepSeekBrain({key,model:this.config.deepseek_model,diagnose:this.diagnose}),device:connection,...speech,output:this.config.output==='mac'?new MacOutput(undefined,this.diagnose):new DeviceOutput(connection),diagnose:this.diagnose,onReply:text=>this.lastReply=text});return this.pipeline;
  }
  private async makePipeline(){if(this.pipeline)return this.pipeline;if(this.pipelinePromise)return this.pipelinePromise;const promise=this.buildPipeline();this.pipelinePromise=promise;try{return await promise;}finally{if(this.pipelinePromise===promise)this.pipelinePromise=undefined;}}
  private async cancelWork(cancelCapture:boolean){
@@ -23,7 +23,7 @@ export class Companion {
  private agentBusy(){return !!this.voice||this.activeVoice>0||!!this.pipelinePromise||performance.now()<this.manualUntil;}
  private attachDevice(c:DeviceConnection,record:PairingRecord){this.connection=c;
     c.on('disconnected',()=>{if(this.connection===c){this.connection=undefined;void this.resetServices();this.manualUntil=0;if(this.desired===record.device_id)this.scheduleReconnect(record);}});
-    c.on('event',msg=>{if(msg.type==='utterance.start'){void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer(),endpoint:this.endpointFactory(),work:Promise.resolve(),pending:0};}
+    c.on('event',msg=>{if(msg.type==='utterance.start'){this.lastError='';this.diagnose({event:'capture.started',turn:msg.turn_seq});void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer(),endpoint:this.endpointFactory(),work:Promise.resolve(),pending:0,began:performance.now()};}
      if(msg.type==='utterance.end'&&this.voice&&this.voice.turn===msg.turn_seq){const voice=this.voice;voice.work=voice.work.then(()=>this.finishVoice(voice,c,false)).catch(error=>this.captureProblem(voice,error));}
      if(msg.type==='error'&&!msg.command_id){void this.cancelWork(true);this.problem(new Error(msg.code));}
      if(msg.type==='playback.started')this.diagnose({event:'playback.started',turn:msg.turn_seq});
@@ -40,7 +40,7 @@ export class Companion {
  private async finishVoice(voice:VoiceCapture,c:DeviceConnection,local:boolean){
   if(this.voice!==voice||this.connection!==c)return;this.voice=undefined;const epoch=this.epoch;this.activeVoice++;
   try{const pcm=local?voice.buffer.finishAtEndpoint():voice.buffer.finish();await c.cancel(voice.turn);
-   if(epoch!==this.epoch||this.connection!==c)return;this.diagnose({event:'utterance.ended',turn:voice.turn,bytes:pcm.length});
+   if(epoch!==this.epoch||this.connection!==c)return;this.diagnose({event:'utterance.ended',turn:voice.turn,bytes:pcm.length,duration_ms:Math.round(performance.now()-voice.began)});
    const p=await this.makePipeline();if(epoch!==this.epoch||this.connection!==c)return;await p.audio(pcm,voice.turn);
   }catch(error){if(epoch===this.epoch)this.problem(error);}finally{this.activeVoice--;}
  }

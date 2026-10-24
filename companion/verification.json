@@ -1,10 +1,10 @@
 {
   "date": "2026-10-24",
-  "overall": "physical-voice-smoke-passed-long-soak-and-board-speaker-pending",
+  "overall": "physical-voice-smoke-passed-acoustic-soak-failed-no-speech",
   "checks": {
     "host_tests": {
       "status": "passed",
-      "count": 49,
+      "count": 51,
       "note": "Full suite after final PCM fix; tsc/package build passed, includes actual local Silero silence inference, capture cancellation, native PCM drain and temp install/upgrade checks."
     },
     "native_keychain": {
@@ -40,7 +40,7 @@
     "render_smoke": {
       "status": "passed",
       "fps": 24.7,
-      "note": "Bounded AFE-listening passive capture 24.7–24.9 FPS. No claim of long soak or optical panel measurement."
+      "note": "Bounded AFE-listening passive capture 24.7\u201324.9 FPS. No claim of long soak or optical panel measurement."
     },
     "physical_pairing": {
       "status": "passed",
@@ -131,6 +131,11 @@
     "dependency_audit": {
       "status": "passed",
       "production_vulnerabilities": 0
+    },
+    "acoustic_soak": {
+      "status": "failed",
+      "artifact": "acoustic-verification.json",
+      "note": "Automated Mac speaker -> real board mic: 2 full turns passed; turn 3 woke but local VAD reported no_speech. Stopped without further cloud calls. Isolated same-sentence local VAD diagnostic passed; intermittent cause unresolved. 10 rounds/10 minutes not accepted."
     }
   }
 }

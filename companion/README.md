@@ -26,7 +26,7 @@ MCP配置见随包 `Contents/Resources/config/mcp.example.json`，将两个安�
 
 在源码 `companion/` 执行 `npm ci`、`npm run native`、`npm test`、`npm run check`；`npm start`启动开发服务。`bash scripts/package-macos.sh`生成本机包。若已有 Apple Development 身份，可用 `ROUND_EYES_SIGN_IDENTITY="签名身份名称或证书指纹" bash scripts/package-macos.sh`；不需要导出私钥。原生钥匙串助手保留稳定本机签名，避免无关升级改变现有条目的访问授权。macOS 15+ 需要用户允许本地网络访问；设备授权成功并不等于系统已允许局域网通信。Keychain helper只通过长度前缀stdin/stdout传值，API Key不进入命令参数或环境变量。
 
-Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产生有界付费调用，不作为普通测试运行。已有结果见provider-verification.json。协议见工作区docs/round-eyes-protocol-v1.md；当前验收状态见verification.json。当前已通过一轮实机麦克风、眼神与Mac播放；10轮/10分钟和板端喇叭仍待验收。真实API、设备显示、麦克风、板端喇叭和安装验收分开记录，pending不等于通过。
+Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产生有界付费调用，不作为普通测试运行。已有结果见provider-verification.json。协议见工作区docs/round-eyes-protocol-v1.md；当前验收状态见verification.json。当前已通过一轮实机麦克风、眼神与Mac播放；自动实测前2轮完整通过，第3轮出现no_speech并停止，10轮/10分钟尚未通过；板端喇叭仍待验收。真实API、设备显示、麦克风、板端喇叭和安装验收分开记录，pending不等于通过。
 
 ## 更新、回滚与卸载
 
@@ -37,3 +37,8 @@ Provider真实冒烟脚本为`scripts/smoke-providers.ts`，每次运行会产�
 固件稳定回滚镜像是 `hardware/esp32-bringup/firmware/xiaozhi-1.9.4-s3-round-eyes.bin`，SHA256 `a3f06cd723d384316bda9e55f46df0113434a417ecb07dc0fa356ef73e467ba2`。当前预检OTA记录为sequence2/ota_1/0x700000，但后续刷写前必须重新读取实时OTA选择，不能永久假定此地址。只写确认的应用槽；禁止整片擦除、重写NVS/分区/模型。完整应用槽备份在不对外提供的backups目录。
 
 首版不包含公网中继、Windows版和公众签名公证发布。串口配对具有30秒物理确认窗；超时后从设置重新发起，不能用网络请求绕过BOOT确认。
+
+
+获得现场播放许可后，可运行 `node companion/scripts/acoustic-soak.mjs --play-test-sentences /tmp/acoustic-soak.json`。需先连接已安装应用并选择 Mac 输出；脚本用系统 Tingting 语音唤醒设备，再播放最多 10 条短句，间隔 57 秒，总计观察 10 分钟。会产生真实 ASR、语义和 TTS 调用；首个错误、断连、重启或超时立即停止，不调整音量或输出路由。报告仅保存轮次、耗时和安全错误码，不保存识别文本或音频。屏幕 FPS/内存需另外使用被动串口监控，不能由该脚本推断。
+
+诊断中 `utterance.ended.duration_ms` 是采集开始到主机结束采集确认的时间（包含说话）；`asr.done`、`reaction.ready`、`reaction.applied` 分别为识别、语义分析和设备确认耗时。`reply.first_token` 从开始请求回复计时；`tts.first_audio` 从首次请求合成到首个 PCM 块计时。Mac `playback.started` 从创建播放器到首个缓冲区的 `dataPlayedBack` 回调计时，是软件播放观察值，未使用外置麦克风测量声学延迟。`reply.completed` 从语义分析开始计时，直到回复和播放排空；它不包含 ASR 时间。

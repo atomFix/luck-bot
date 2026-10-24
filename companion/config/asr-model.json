@@ -1,0 +1,40 @@
+{
+  "id": "zipformer-small-ctc-zh-int8-2025-04-01",
+  "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01.tar.bz2",
+  "archive_size": 21264113,
+  "archive_sha256": "b3b309f7ce4a737195fcc6963ea19b0653a7d3401580af5ae0d3e284cbb71f0b",
+  "upstream_asset_id": 242594222,
+  "model": "asr-zipformer-zh.int8.onnx",
+  "tokens": "asr-zipformer-zh.tokens.txt",
+  "files": [
+    {
+      "name": "asr-zipformer-zh.int8.onnx",
+      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/model.int8.onnx",
+      "size": 26342340,
+      "sha256": "68c9c943840f7d9cf3e8a4970ba50f404feb5277f611fa82b7e72267786fa84a"
+    },
+    {
+      "name": "asr-zipformer-zh.tokens.txt",
+      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/tokens.txt",
+      "size": 13366,
+      "sha256": "6fed8c6c248516f38e7faa19404b57413e8ce259f1cbc1fa4aebc86eac32fdfd"
+    },
+    {
+      "name": "asr-zipformer-zh.bbpe.model",
+      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/bbpe.model",
+      "size": 255180,
+      "sha256": "503204e0690eff065e30d0e01898c9ab06d0e6dc376a741eb6846198f95b2f82"
+    },
+    {
+      "name": "asr-probe.wav",
+      "archive_path": "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/test_wavs/0.wav",
+      "size": 179646,
+      "sha256": "668bf8df51a10027b84d5d8816a1ce11ae93545538dc05cfe2aa6811d399c250"
+    }
+  ],
+  "runtime": "sherpa-onnx-node@2.0.0",
+  "sample_rate": 16000,
+  "license": "Apache-2.0",
+  "license_source": "https://huggingface.co/csukuangfj/icefall-streaming-zipformer-small-ctc-zh-2025-04-01",
+  "probe_expected": "对我做了介绍那么我想说的是呢大家如果对我的研究感兴趣呢"
+}

@@ -1,0 +1,65 @@
+{
+  "as_of": "2026-10-24T12:34:03.268490+08:00",
+  "source_commit": "2739986",
+  "tests": {
+    "typescript": "passed",
+    "node_tests": 86,
+    "native_companion": "passed",
+    "native_eyes": "passed",
+    "esp_idf_build": "passed",
+    "signed_bundle_manifest": "passed",
+    "bundled_sqlite_reopen": "passed",
+    "bundled_speaker_synthetic_192D": "passed_not_identity_acceptance"
+  },
+  "firmware": {
+    "bytes": 3589168,
+    "sha256": "1820654ea22164c35f377ac781838b36bc846bb9402ab20bb137c52df1107fc6",
+    "ota_sequence": 2,
+    "slot": "ota_1",
+    "offset": "0x700000",
+    "application_only": true,
+    "previous_slot_backup_hash_verified": true
+  },
+  "installed": {
+    "credential_helper_hash_unchanged": true,
+    "paired_connection": "passed",
+    "capability": "ambient_v1",
+    "output": "mac",
+    "ledger_counts_before": {
+      "turns": 3,
+      "provider_attempts": 2
+    },
+    "ledger_counts_after": {
+      "turns": 3,
+      "provider_attempts": 2
+    }
+  },
+  "transport_probe": {
+    "frames": 1746,
+    "bytes": 1117440,
+    "gaps": 0,
+    "streams": 1,
+    "errors": [
+      "stopped_disabled"
+    ],
+    "elapsed_ms": 35021,
+    "max_gap_ms": 435
+  },
+  "fps": {
+    "samples": [
+      27.4,
+      26.4,
+      27.0
+    ],
+    "min": 26.4,
+    "note": "short idle/continuous-stream observation, not long soak"
+  },
+  "pending": [
+    "user_three_sample_enrollment",
+    "real_matched_ambient_expression_and_ledger",
+    "unknown_and_mixed_speaker_accuracy",
+    "wake_and_playback_echo_physical_acceptance",
+    "sustained_soak",
+    "board_speaker_absent"
+  ]
+}

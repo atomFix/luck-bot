@@ -9,7 +9,7 @@ ESP32-S3 圆屏 AI 伙伴：黑底圆脸、两只白眼，用眼神回应语义�
 | 路径 | 内容 |
 | --- | --- |
 | `companion/` | macOS arm64 菜单栏程序、设置页、CLI、MCP、Skill、Keychain 助手与打包脚本 |
-| `hardware/esp32-bringup/character/` | 41 种眼型、21 种情绪映射、动画与抗锯齿绘制 |
+| `hardware/esp32-bringup/character/` | 49 种眼型、25 种情绪映射、动画与抗锯齿绘制 |
 | `hardware/esp32-bringup/companion/` | ESP32 配对、TLS/WSS、租约、音频与优先级控制 |
 | `hardware/esp32-bringup/preview/` | 使用同一 C++ 模型的本机预览 |
 | `hardware/esp32-bringup/patches/` | 小智 v1.9.4 集成补丁与源码校验基线 |

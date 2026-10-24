@@ -12,7 +12,7 @@ Call `list_devices` to find authorized devices. Use the user's chosen device; if
 If you already know the desired expression, call `set_reaction` directly. Do not call `semantic_input` to reclassify your own expression. Use `semantic_input` when the user wants a supplied sentence understood; it can return reply text but does not grant microphone access or play audio.
 
 `set_reaction` accepts only these emotion keys:
-`neutral happy laughing funny sad angry crying loving embarrassed surprised shocked thinking winking cool relaxed delicious kissy confident sleepy silly confused`.
+`neutral happy laughing funny sad angry crying loving embarrassed surprised shocked thinking winking cool relaxed delicious kissy confident sleepy silly confused wide_eyes mega_eyes giant_left giant_right`.
 
 `hold_ms` is an integer from **300 to 3000**, even for a task that lasts minutes. Use 1600–3000 at meaningful milestones; the eyes return to idle after the hold. Do not request 60000 or refresh continuously just to occupy the device. Useful examples: analysis → `thinking`; unclear choice → `confused`; completed work → `happy`; waiting comfortably → `relaxed`. A user's distress usually calls for care, not an angry mirror.
 

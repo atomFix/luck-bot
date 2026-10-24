@@ -1,4 +1,5 @@
 #pragma once
+#include "emotion_keys.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -12,7 +13,7 @@ inline bool ValidAnimation(const AnimationPlan& p){
  if(!p.count||p.count>12)return false;
  uint32_t total=0;
  for(size_t i=0;i<p.count;i++){const auto& s=p.steps[i];const auto& m=s.motion;
-  if(s.duration_ms<200||s.duration_ms>5000||m.emotion>=21||m.transition_ms<120||m.transition_ms>1500)return false;
+  if(s.duration_ms<200||s.duration_ms>5000||m.emotion>=kEmotionCount||m.transition_ms<120||m.transition_ms>1500)return false;
   for(float v:{m.look_x,m.look_y,m.scale,m.shake,m.blink})if(!std::isfinite(v))return false;
   if(std::abs(m.look_x)>1||std::abs(m.look_y)>1||m.scale<.65f||m.scale>1.2f||m.shake<0||m.shake>1||m.blink<0||m.blink>3)return false;
   total+=s.duration_ms;

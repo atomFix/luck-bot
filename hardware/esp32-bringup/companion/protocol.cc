@@ -1,4 +1,5 @@
 #include "protocol.h"
+#include "../character/emotion_keys.h"
 #include <cstring>
 namespace companion {
 static uint32_t U32(const uint8_t* b){return uint32_t(b[0])|(uint32_t(b[1])<<8)|(uint32_t(b[2])<<16)|(uint32_t(b[3])<<24);}
@@ -9,8 +10,7 @@ bool DecodeAudio(const uint8_t* b,size_t n,AudioHeader& h){
 }
 bool ValidReaction(const char* value,uint32_t hold){
  if(!value||hold<300||hold>3000)return false;
- static const char* keys[]={"neutral","happy","laughing","funny","sad","angry","crying","loving","embarrassed","surprised","shocked","thinking","winking","cool","relaxed","delicious","kissy","confident","sleepy","silly","confused"};
- for(auto key:keys){if(!strcmp(key,value))return true;}
+ for(auto key:round_eyes::kEmotionKeys){if(!strcmp(key,value))return true;}
  return false;
 }
 }

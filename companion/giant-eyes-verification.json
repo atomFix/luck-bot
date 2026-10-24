@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-24",
+  "emotions": 25,
+  "base_poses": 49,
+  "series_presets": 10,
+  "new_expressions": {
+    "wide_eyes": "瞪大双眼",
+    "mega_eyes": "超大双眼",
+    "giant_left": "超大左眼",
+    "giant_right": "超大右眼"
+  },
+  "new_series": [
+    "double_take",
+    "giant_peek"
+  ],
+  "geometry": {
+    "single_eye_nominal_diameter_px": 212,
+    "verified_single_eye_span_px": ">200 on both axes",
+    "verified_single_eye_area_px2": ">30000",
+    "single_eye_area_ratio_to_small_eye": ">80",
+    "double_eye_combined_area_px2": ">26000",
+    "canvas_bytes": 115200,
+    "normal_pose_radius_and_extent_preserved": true
+  },
+  "firmware": {
+    "offset": "0x700000",
+    "active_slot": 1,
+    "firmware_bytes": 3597344,
+    "sha256": "f3aa2c47a1c01faeabf40e265a8fde5cb871bf3858a4a50cd80e6afa59057d9c",
+    "flash_verified": true
+  },
+  "checks": {
+    "typescript_tests_passed": 171,
+    "typescript_check": true,
+    "native_rendering_suites_passed": 8,
+    "companion_native_suites_passed": 5,
+    "all_25_keys_valid_for_single_reaction_and_animation": true,
+    "native_browser_coordinate_tolerance_px": 0.08,
+    "raster_reference_comparison": {
+      "poses": 49,
+      "different_pixels": 0,
+      "maximum_channel_delta": 0,
+      "reference_ms": 122.76,
+      "optimized_ms": 73.66,
+      "host_speedup": 1.67
+    },
+    "signed_companion_installed": true,
+    "pairing_and_settings_preserved": true,
+    "fixed_management_port": 4382,
+    "gallery_cards_rendered": 25,
+    "gallery_series_rendered": 10
+  },
+  "live_device": {
+    "manual_calls_acked": 12,
+    "manual_emotions": [
+      "giant_left",
+      "giant_right",
+      "mega_eyes",
+      "wide_eyes"
+    ],
+    "manual_ack_min_ms": 82,
+    "manual_ack_max_ms": 294,
+    "timeline": {
+      "result": {
+        "scene": "giant_showcase",
+        "steps": 4
+      },
+      "ack_ms": 80,
+      "duration_ms": 18000
+    },
+    "final_status": {
+      "connected": true,
+      "error": "",
+      "state": "listening",
+      "streaming": true
+    }
+  },
+  "renderer": {
+    "optimized_passive_capture_seconds": 45,
+    "observed_refresh_fps": [
+      23.6,
+      20.1,
+      19.5,
+      19.4
+    ],
+    "giant_steady_refresh_fps_min": 19.4,
+    "minimum_free_heap_bytes": 7699024,
+    "pre_optimization_low_fps": 12.4,
+    "panic_detected": false,
+    "algorithm": "active-edge scan conversion plus difference coverage; four vertical antialiasing samples retained; no per-frame allocation"
+  },
+  "physical_acceptance": "User confirmed obviously enlarged double eyes and single eye on the round screen. Optimized renderer then matched the prior renderer exactly on all49 settled poses.",
+  "limits": [
+    "Large full-screen eyes currently render about19-20FPS during sustained giant-eye demonstration; ordinary small-eye refresh is about25FPS.",
+    "Short smoke test does not replace a long voice or overnight stability test.",
+    "ACK timings exclude audio capture and ASR.",
+    "Giant-eye rotation is constrained to keep the broad contour on the visible face."
+  ]
+}

@@ -1,4 +1,5 @@
 #include "protocol.h"
+#include "../../character/emotion_keys.h"
 #include <cassert>
 #include <fstream>
 #include <string>
@@ -11,4 +12,5 @@ int main(int argc,char** argv){
  AudioHeader h{};assert(DecodeAudio(bytes,sizeof(bytes),h));assert(h.stream_id==1&&h.turn_seq==3&&h.payload_len==2&&h.end);
  assert(!DecodeAudio(bytes,sizeof(bytes)-1,h));
  assert(ValidReaction("relaxed",1600));assert(!ValidReaction("shell",1600));assert(!ValidReaction("happy",3001));
+ for(auto key:round_eyes::kEmotionKeys){assert(ValidReaction(key,300));assert(ValidReaction(key,3000));assert(!ValidReaction(key,299));}
 }

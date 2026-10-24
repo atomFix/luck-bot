@@ -44,7 +44,15 @@ static const std::array<Pose,kPoseCount> poses = {{
  {E(84,120,34,44,0,2),E(156,120,34,44,0,2)},         // 37 startled side look
  {E(85,133,28,6,.08),E(155,135,28,6,.08)},           // 38 bored downcast
  {E(84,121,25,44,-.08),E(156,121,25,44,-.08)},        // 39 eager upward glance
- {E(85,125,24,36,.08),E(155,125,24,36,.08)}           // 40 soft affectionate glance
+ {E(85,125,24,36,.08),E(155,125,24,36,.08)},          // 40 soft affectionate glance
+ {E(65,120,84,144),E(175,120,84,144)},                // 41 wide attentive eyes
+ {E(65,119,88,154),E(175,119,88,154)},                // 42 wide eyes breathing
+ {E(68,120,100,176,0,2),E(172,120,100,176,0,2)},              // 43 full-height double eyes
+ {E(68,120,100,178,0,2),E(172,120,100,178,0,2)},              // 44 mega double eyes breathing
+ {E(112,120,212,212,0,2),E(225,130,12,26)},           // 45 giant left eye, tiny right
+ {E(112,119,208,214,0,2),E(225,126,12,31)},           // 46 giant left gentle variation
+ {E(15,130,12,26),E(128,120,212,212,0,2)},            // 47 tiny left, giant right
+ {E(15,126,12,31),E(128,119,208,214,0,2)}             // 48 giant right gentle variation
 }};
 static const std::array<Facing,kPoseCount> facings = {{
  {.24f,.13f,-.09f},{.18f,.12f,-.06f},{-.28f,-.16f,.12f},{-.28f,.04f,-.06f},
@@ -56,17 +64,22 @@ static const std::array<Facing,kPoseCount> facings = {{
  {.16f,-.13f,-.07f},{.48f,0,0},{-.48f,0,0},{0,.30f,0},{0,-.28f,0},
  {-.36f,.24f,-.07f},{.36f,.24f,.07f},{-.38f,-.22f,.10f},{.38f,-.22f,-.10f},
  {-.16f,.04f,.17f},{-.30f,-.18f,-.12f},{-.40f,.10f,.13f},{.40f,.02f,-.10f},
- {.38f,.08f,.06f},{-.24f,-.20f,-.05f},{.16f,.24f,-.08f},{.28f,-.10f,.12f}
+ {.38f,.08f,.06f},{-.24f,-.20f,-.05f},{.16f,.24f,-.08f},{.28f,-.10f,.12f},
+ {0,0,0},{0,.015f,.01f},{0,0,0},{0,0,.015f},{0,0,0},{0,0,.012f},{0,0,0},{0,0,-.012f}
 }};
 const Pose& GetPose(uint8_t id){return poses[id<kPoseCount?id:0];}
 const Facing& GetPoseFacing(uint8_t id){return facings[id<kPoseCount?id:0];}
-const std::array<Playlist,21> kEmotions = {{
+float GetPoseRadius(uint8_t id){return id>=41&&id<kPoseCount?116.f:104.f;}
+float GetPoseExtent(uint8_t id){return id>=41&&id<kPoseCount?117.f:77.f;}
+const std::array<Playlist,kEmotionCount> kEmotions = {{
  {"neutral",{0,25,26,0},3,6200},{"happy",{2,31,32,20},4,3200},{"laughing",{11,20,31,0},3,2600},
  {"funny",{5,32,23,0},3,3000},{"sad",{16,38,12,0},3,4000},{"angry",{7,36,0,0},2,3600},
  {"crying",{12,16,28,0},3,3800},{"loving",{19,40,17,0},3,4000},{"embarrassed",{24,34,28,0},3,3800},
  {"surprised",{3,35,37,0},3,3400},{"shocked",{21,37,3,0},3,3000},{"thinking",{8,29,30,27},4,3600},
  {"winking",{23,5,25,0},3,3200},{"cool",{15,25,26,0},3,4200},{"relaxed",{6,28,40,0},3,4200},
  {"delicious",{17,32,20,0},3,3600},{"kissy",{40,34,23,0},3,3600},{"confident",{18,30,39,0},3,3800},
- {"sleepy",{22,13,38,4},4,4400},{"silly",{5,32,14,0},3,3200},{"confused",{9,36,14,29},4,3400}
+ {"sleepy",{22,13,38,4},4,4400},{"silly",{5,32,14,0},3,3200},{"confused",{9,36,14,29},4,3400},
+ {"wide_eyes",{41,42,0,0},2,4200},{"mega_eyes",{43,44,0,0},2,4800},
+ {"giant_left",{45,46,0,0},2,4800},{"giant_right",{47,48,0,0},2,4800}
 }};
 }

@@ -49,3 +49,7 @@ test('direction commands use screen coordinates and reject negated quoted hypoth
  for(const [text,x,y] of [['右上。',1,-1],['呃，右下。',1,1],['你向左上看一下可以吗？',-1,-1],['往左下看',-1,1],['左看',-1,0],['看右边',1,0],['抬头',0,-1],['低头',0,1]] as const)assert.deepEqual(requestedDirection(text),{look_x:x,look_y:y},text);
  for(const text of ['不要看右上','他说右上','如果往右上看会怎样','右上角有只猫','你先向右看然后生气','“右下”'])assert.equal(requestedDirection(text),null,text);
 });
+test('giant-eye requests execute locally while story references keep semantic interpretation',()=>{
+ for(const [text,emotion] of [['瞪大眼睛','wide_eyes'],['来个超大双眼','mega_eyes'],['眼睛变得超级大','mega_eyes'],['你展示一下超大左眼表情','giant_left'],['右眼超级大','giant_right'],['单眼占满屏幕','giant_left']])assert.equal(requestedExpression(text!)?.emotion,emotion,text);
+ for(const text of ['不要瞪大眼睛','他突然瞪大眼睛','如果眼睛变得超级大怎么办','我看到一只超大左眼','你别让单眼占满屏幕'])assert.equal(requestedExpression(text),null,text);
+});

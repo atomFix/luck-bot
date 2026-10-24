@@ -12,9 +12,10 @@
     return (h+v||'正面')+(Math.abs(f.roll)>.08?' · 轻歪头':'');
   }
   function project(pose,step={},elapsed=0,moving=false){
+    const sphereRadius=pose.radius??104,extent=pose.extent??77,giant=clamp((extent-77)/40,0,1),yawLimit=.65-.49*giant,pitchLimit=.38-.26*giant;
     const f=pose.facing,scale=step.scale??1,rate=step.blink??1;
-    const yaw=clamp((Math.abs(step.look_x||0)>.001?step.look_x*.55:f.yaw)+(moving?.035*Math.sin(elapsed*.0008+pose.id*.7):0),-.65,.65);
-    const pitch=clamp((Math.abs(step.look_y||0)>.001?-step.look_y*.36:f.pitch)+(moving?.02*Math.sin(elapsed*.0006):0),-.38,.38),roll=clamp(f.roll,-.3,.3);
+    const yaw=clamp((Math.abs(step.look_x||0)>.001?step.look_x*.55:f.yaw)+(moving?.035*Math.sin(elapsed*.0008+pose.id*.7):0),-yawLimit,yawLimit);
+    const pitch=clamp((Math.abs(step.look_y||0)>.001?-step.look_y*.36:f.pitch)+(moving?.02*Math.sin(elapsed*.0006):0),-pitchLimit,pitchLimit),roll=clamp(f.roll,-.3,.3);
     const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),cr=Math.cos(roll),sr=Math.sin(roll);
     let blink=1;
     const blinkAge=step.blink_once&&elapsed<240?elapsed:rate>0&&elapsed>=3500?(elapsed-3500)%(4500/rate):-1;
@@ -28,16 +29,16 @@
         const x=co*width/2*(1-capsule)+(co*radius+(i<12||i>=36?spanX:-spanX))*capsule;
         const y=si*height/2*(1-capsule)+(si*radius+(i<24?spanY:-spanY))*capsule;
         const shake=moving?(step.shake||0):0;
-        let px=(cx+shake*3.2*Math.sin(elapsed*.045)+x*Math.cos(angle)-y*Math.sin(angle)-120)/104;
-        let py=(cyEye+shake*2.3*Math.sin(elapsed*.057)+x*Math.sin(angle)+y*Math.cos(angle)-120)/104;
+        let px=(cx+shake*3.2*Math.sin(elapsed*.045)+x*Math.cos(angle)-y*Math.sin(angle)-120)/sphereRadius;
+        let py=(cyEye+shake*2.3*Math.sin(elapsed*.057)+x*Math.sin(angle)+y*Math.cos(angle)-120)/sphereRadius;
         const length=Math.hypot(px,py);if(length>.94){px*=.94/length;py*=.94/length;}
         const z=Math.sqrt(Math.max(0,1-px*px-py*py)),tx=px*cy+z*sy,tz=z*cy-px*sy,ty=py*cp-tz*sp;
-        const outX=(tx*cr-ty*sr)*104,outY=(tx*sr+ty*cr)*104;
+        const outX=(tx*cr-ty*sr)*sphereRadius,outY=(tx*sr+ty*cr)*sphereRadius;
         points.push(120+outX,120+outY);maxY=Math.max(maxY,Math.abs(outY));
       }
       return points;
     });
-    const fit=Math.min(1,77/maxY);
+    const fit=Math.min(1,extent/maxY);
     return fit<1?result.map(points=>points.map(v=>120+(v-120)*fit)):result;
   }
   window.RoundEyesGeometry={project,directions,facingLabel};

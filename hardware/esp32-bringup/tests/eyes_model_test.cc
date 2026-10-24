@@ -16,7 +16,7 @@ static void Valid(const Frame& f) {
         CHECK(Area(eye)>1);
         for (auto p:eye) {
             CHECK(std::isfinite(p.x)&&std::isfinite(p.y));
-            CHECK((p.x-120)*(p.x-120)+(p.y-120)*(p.y-120)<112*112);
+            CHECK((p.x-120)*(p.x-120)+(p.y-120)*(p.y-120)<118*118);
         }
     }
 }

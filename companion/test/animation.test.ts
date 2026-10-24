@@ -77,6 +77,12 @@ test('catalog demos and directional followups execute exact local plans with fas
  assert.deepEqual(sent[2].steps.map((s:any)=>[s.look_x,s.look_y]),[[1,1]]);
  assert.deepEqual(sent[3].steps.map((s:any)=>[s.look_x,s.look_y]),[[1,-1]]);
 });
+test('giant eye requests reach the animation protocol without a semantic cloud call',async()=>{
+ const sent:any[]=[];
+ const p=new VoicePipeline({animations:true,brain:{animation:async()=>{throw Error('giant requests are local');}},device:{animate:async(plan:any)=>{sent.push(plan);return {command_id:'g',applied_uptime_ms:0};},cancel:async()=>{}},asr:{},tts:{},output:{cancel:async()=>{}}}as any);
+ for(const [i,text]of ['瞪大眼睛','来个超大双眼','超大左眼一下','超大右眼一下'].entries())await p.expression(new Uint8Array(),i+1,'owner',undefined,{text,fast:false});
+ assert.deepEqual(sent.map(p=>p.steps[0].emotion),['wide_eyes','mega_eyes','giant_left','giant_right']);
+});
 
 test('list and detail retain actual historical direction values without rewriting prior model mistakes',async()=>{
  const {Ledger}=await import('../src/ledger/repository.js');const {mkdtemp,rm}=await import('node:fs/promises');const {join}=await import('node:path');const {tmpdir}=await import('node:os');const dir=await mkdtemp(join(tmpdir(),'eye-directions-'));const db=await Ledger.open(join(dir,'db'));

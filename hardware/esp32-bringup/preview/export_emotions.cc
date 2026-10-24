@@ -10,7 +10,7 @@ int main(){
    for(uint64_t t=0;t<=1600;t+=40)frame=model.Tick(t);
    if(j)std::printf(",");std::printf("{\"id\":%u,\"facing\":{",emotion.ids[j]);
    const auto& facing=GetPoseFacing(emotion.ids[j]);
-   std::printf("\"yaw\":%.5f,\"pitch\":%.5f,\"roll\":%.5f},\"params\":[",facing.yaw,facing.pitch,facing.roll);
+   std::printf("\"yaw\":%.5f,\"pitch\":%.5f,\"roll\":%.5f},\"radius\":%.5f,\"extent\":%.5f,\"params\":[",facing.yaw,facing.pitch,facing.roll,GetPoseRadius(emotion.ids[j]),GetPoseExtent(emotion.ids[j]));
    const auto& pose=GetPose(emotion.ids[j]);
    for(size_t eye=0;eye<2;++eye){if(eye)std::printf(",");const auto& p=pose[eye];std::printf("[%.5f,%.5f,%.5f,%.5f,%.5f,%.5f]",p.x,p.y,p.width,p.height,p.angle,p.power);}
    std::printf("],\"paths\":[");

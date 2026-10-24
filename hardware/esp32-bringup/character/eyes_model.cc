@@ -62,6 +62,8 @@ Frame EyesModel::Tick(uint64_t now) {
         float dt=std::min(.016f,remaining);remaining-=dt;
         const float omega=motion_.active?std::clamp(4000.f/motion_.transition_ms,5.f,30.f):12.f;
         auto spring=[dt,omega](float& x,float& v,float goal){float a=omega*omega*(goal-x)-2*omega*v;v+=a*dt;x+=v*dt;};
+        spring(projection_radius_,radius_velocity_,GetPoseRadius(pose_));
+        spring(extent_,extent_velocity_,GetPoseExtent(pose_));
         spring(facing_.yaw,facing_velocity_.yaw,target_facing.yaw);
         spring(facing_.pitch,facing_velocity_.pitch,target_facing.pitch);
         spring(facing_.roll,facing_velocity_.roll,target_facing.roll);
@@ -75,7 +77,11 @@ Frame EyesModel::Tick(uint64_t now) {
     motion_shake_+=( (motion_.active?motion_.shake:0)-motion_shake_)*std::min(1.f,float(now-last_)/150.f);
     last_=now;
     Frame f;f.pose=pose_;f.behavior=behavior_;
-    const float cy=std::cos(facing_.yaw),sy=std::sin(facing_.yaw),cp=std::cos(facing_.pitch),sp=std::sin(facing_.pitch),cr=std::cos(facing_.roll),sr=std::sin(facing_.roll);
+    // A giant eye covers a broad arc; constrain rotation to keep its contour on the visible hemisphere.
+    const float giant=std::clamp((extent_-77.f)/40.f,0.f,1.f);
+    const float yaw=std::clamp(facing_.yaw,-(.65f-.49f*giant),.65f-.49f*giant);
+    const float pitch=std::clamp(facing_.pitch,-(.38f-.26f*giant),.38f-.26f*giant);
+    const float cy=std::cos(yaw),sy=std::sin(yaw),cp=std::cos(pitch),sp=std::sin(pitch),cr=std::cos(facing_.roll),sr=std::sin(facing_.roll);
     float max_y=1;
     for(size_t e=0;e<2;++e){auto p=current_[e];
         p.x+=motion_shake_*3.2f*std::sin(float(now%10000)*.045f);p.y+=motion_shake_*2.3f*std::sin(float(now%10000)*.057f);
@@ -89,17 +95,17 @@ Frame EyesModel::Tick(uint64_t now) {
             const float pill_x=co*radius+(i<12||i>=36?span_x:-span_x),pill_y=si*radius+(i<24?span_y:-span_y);
             float x=co*p.width*.5f*(1-capsule)+pill_x*capsule;
             float y=si*p.height*.5f*(1-capsule)+pill_y*capsule;
-            float px=(p.x+x*std::cos(p.angle)-y*std::sin(p.angle)-120)/104.f;
-            float py=(p.y+x*std::sin(p.angle)+y*std::cos(p.angle)-120)/104.f;
+            float px=(p.x+x*std::cos(p.angle)-y*std::sin(p.angle)-120)/projection_radius_;
+            float py=(p.y+x*std::sin(p.angle)+y*std::cos(p.angle)-120)/projection_radius_;
             const float length=std::sqrt(px*px+py*py);if(length>.94f){px*=.94f/length;py*=.94f/length;}
             const float pz=std::sqrt(std::max(0.f,1-px*px-py*py));
             const float tx=px*cy+pz*sy,tz=pz*cy-px*sy,ty=py*cp-tz*sp;
-            const float out_x=(tx*cr-ty*sr)*104.f,out_y=(tx*sr+ty*cr)*104.f;
+            const float out_x=(tx*cr-ty*sr)*projection_radius_,out_y=(tx*sr+ty*cr)*projection_radius_;
             f.eyes[e][i]={120+out_x,120+out_y};max_y=std::max(max_y,std::abs(out_y));
         }
     }
     // Fit the complete silhouette, preserving curves rather than clipping vertices.
-    const float fit=std::min(1.f,(kEyeViewportHeight*.5f-3)/max_y);
+    const float fit=std::min(1.f,extent_/max_y);
     if(fit<1)for(auto& eye:f.eyes)for(auto& p:eye){p.x=120+(p.x-120)*fit;p.y=120+(p.y-120)*fit;}
     return f;
 }

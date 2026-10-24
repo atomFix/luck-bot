@@ -1,6 +1,6 @@
 import type {Reaction,Emotion,Message} from '../contracts.js';
 // Catalog labels and intentional synonyms; each maps to one supported wire emotion.
-export const EXPRESSION_NAMES:Record<string,Emotion>={专注:'neutral',开心:'happy',笑:'happy',大笑:'laughing',逗趣:'funny',难过:'sad',伤心:'sad',生气:'angry',哭泣:'crying',关心:'loving',害羞:'embarrassed',尴尬:'embarrassed',惊喜:'surprised',惊讶:'surprised',好奇心:'surprised',好奇:'surprised',震惊:'shocked',思考:'thinking',眨眼:'winking',淡定:'cool',冷静:'cool',放松:'relaxed',满足:'delicious',亲昵:'kissy',自信:'confident',困倦:'sleepy',瞌睡:'sleepy',调皮:'silly',困惑:'confused',疑惑:'confused'};
+export const EXPRESSION_NAMES:Record<string,Emotion>={专注:'neutral',开心:'happy',笑:'happy',大笑:'laughing',逗趣:'funny',难过:'sad',伤心:'sad',生气:'angry',哭泣:'crying',关心:'loving',害羞:'embarrassed',尴尬:'embarrassed',惊喜:'surprised',惊讶:'surprised',好奇心:'surprised',好奇:'surprised',震惊:'shocked',思考:'thinking',眨眼:'winking',淡定:'cool',冷静:'cool',放松:'relaxed',满足:'delicious',亲昵:'kissy',自信:'confident',困倦:'sleepy',瞌睡:'sleepy',调皮:'silly',困惑:'confused',疑惑:'confused',瞪大双眼:'wide_eyes',瞪大眼睛:'wide_eyes',睁大眼睛:'wide_eyes',超大双眼:'mega_eyes',双眼占满屏幕:'mega_eyes',两只眼睛占满屏幕:'mega_eyes',眼睛变得超级大:'mega_eyes',眼睛超级大:'mega_eyes',超大左眼:'giant_left',超大右眼:'giant_right',左眼超级大:'giant_left',右眼超级大:'giant_right',单眼占满屏幕:'giant_left',超大单眼:'giant_left',一只眼睛超级大:'giant_left'};
 const names=Object.keys(EXPRESSION_NAMES).sort((a,b)=>b.length-a.length).join('|');
 const prefix='(?:(?:那|那么|然后))?(?:请|麻烦)?(?:现在|再|先)?(?:你)?(?:能不能|可不可以|能|可以)?(?:给我|帮我)?';
 const suffix='(?:试试)?(?:可以吗|行吗|好吗|好不好|可不可以|行不行|吗|吧|呀|呗|呢)?';
@@ -23,7 +23,7 @@ export function requestedExpression(input:string,history:Message[]=[]):Reaction|
  if(/^(?:你)?(?:给我)?给点回应(?:吧|呀|呗)?$/.test(text))return {emotion:'winking',hold_ms:2500};
  const match=expressionRequest.exec(text);if(!match)return null;
  const instruction=text.replace(match[1]!,'');
- if(!/你|请|麻烦|给我|帮我|表演|表现|表达|展示|显示|做|来|变|换|一下|一个|一点|试试|眼神|表情|样子|现在|再|先/.test(instruction)&&!inEyeRequestContext(history))return null;
+ if(!/你|请|麻烦|给我|帮我|表演|表现|表达|展示|显示|做|来|变|换|一下|一个|一点|试试|眼神|表情|样子|现在|再|先/.test(instruction)&&!/瞪大|睁大|占满|超级大/.test(match[1]!)&&!inEyeRequestContext(history))return null;
  return {emotion:EXPRESSION_NAMES[match[1]!]!,hold_ms:2500};
 }
 export function requestedDirection(input:string):{look_x:number;look_y:number}|null {
@@ -39,7 +39,7 @@ export function localReaction(input:string,history:Message[]=[]):Reaction|null {
  if(input.length>60||/[“”"'「」『』]/u.test(input))return null;
  const text=input.replace(/[\s，,。.!！、]/gu,'');
  const finish=(choices:Emotion[]):Reaction=>{
-  const recent=history.filter(m=>m.role==='assistant').slice(-2).map(m=>/^表情：([a-z]+)/.exec(m.content)?.[1]);
+  const recent=history.filter(m=>m.role==='assistant').slice(-2).map(m=>/^表情：([a-z_]+)/.exec(m.content)?.[1]);
   const emotion=choices.find(e=>!recent.includes(e))??choices.find(e=>recent.at(-1)!==e)??choices[0]!;
   return {emotion,hold_ms:2500};
  };

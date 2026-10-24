@@ -1,4 +1,4 @@
-export const EMOTIONS = ['neutral','happy','laughing','funny','sad','angry','crying','loving','embarrassed','surprised','shocked','thinking','winking','cool','relaxed','delicious','kissy','confident','sleepy','silly','confused'] as const;
+export const EMOTIONS = ['neutral','happy','laughing','funny','sad','angry','crying','loving','embarrassed','surprised','shocked','thinking','winking','cool','relaxed','delicious','kissy','confident','sleepy','silly','confused','wide_eyes','mega_eyes','giant_left','giant_right'] as const;
 export type Emotion = typeof EMOTIONS[number];
 export type Reaction = {emotion: Emotion; hold_ms: number};
 export type Turn = {id:number; signal:AbortSignal};

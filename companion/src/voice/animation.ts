@@ -15,6 +15,8 @@ export const SCENES={
  teased:{label:'被逗后的反应',steps:[step('embarrassed',2800,{scale:.82,look_x:-.4,look_y:.2}),step('silly',3200,{scale:1.08,look_x:.35}),step('relaxed',3400,{transition_ms:1100})]},
  problem:{label:'一起琢磨问题',steps:[step('thinking',4000,{look_x:.5,look_y:-.45}),step('confused',2600,{look_x:-.35}),step('thinking',4000,{transition_ms:1000})]},
  curious:{label:'好奇地观察',steps:[step('surprised',3200,{scale:1.12,look_x:.4,look_y:-.2}),step('thinking',2800,{look_x:-.3}),step('surprised',3200,{scale:1.05,transition_ms:1000})]},
+ double_take:{label:'震惊到撑满圆屏',steps:[step('confused',2400),step('wide_eyes',3200,{transition_ms:900}),step('mega_eyes',4200,{blink:.5,transition_ms:1000}),step('shocked',3200,{transition_ms:1200})]},
+ giant_peek:{label:'凑近放大镜',steps:[step('thinking',2400,{look_x:-.3}),step('giant_left',4200,{transition_ms:1100,blink:.6}),step('giant_right',4200,{transition_ms:1200,blink:.6}),step('confused',3200,{transition_ms:1200})]},
  greeting:{label:'打招呼',steps:[step('happy',3000,{scale:1.1,look_y:-.2}),step('winking',2200,{look_x:.35,blink:0}),step('neutral',2600,{transition_ms:1100})]},
 } as const;
 export type Scene=keyof typeof SCENES;

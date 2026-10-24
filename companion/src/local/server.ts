@@ -39,7 +39,7 @@ export async function startLocalServer(options:{secretStore:Secrets;actions:(nam
      if(!options.speaker||!['list','enroll-start','enroll-next','enroll-cancel','profile-remove','profile-enable','settings'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('speaker_operation');reply(200,await options.speaker(b.op,b.input));return;
     }
     if(path==='/api/admin'){
-     if(!options.admin||!['list','detail','summary','prices','savePrice','privacy','clear'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('admin_operation');reply(200,await options.admin(b.op,b.input));return;
+     if(!options.admin||!['list','detail','summary','prices','estimateDeepseekHistory','savePrice','privacy','clear'].includes(b.op)||!b.input||typeof b.input!=='object'||Array.isArray(b.input))throw new Error('admin_operation');reply(200,await options.admin(b.op,b.input));return;
     }
     if(path==='/api/credentials/reveal'){
      if(!['deepseek','minimax','dashscope'].includes(b.provider))throw new Error('credential_format');await options.admin?.('audit',{event:'credential.revealed',provider:b.provider});const value=await options.secretStore.get('provider/'+b.provider);reply(200,{value});return;

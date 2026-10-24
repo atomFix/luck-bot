@@ -1,3 +1,4 @@
+import {deepseekPrices} from './deepseek-pricing.mjs';
 import {capturePayload} from './payloads.mjs';
 import { parentPort, workerData } from "node:worker_threads";
 import { DatabaseSync } from "node:sqlite";
@@ -289,7 +290,7 @@ function execute(op, i) {
       i.provider,
       i.model,
       integer(i.started_at),
-      json(chosen),
+      json(chosen.length ? chosen : deepseekPrices(i.provider, i.model, i.started_at)),
     );
     if(recordText() && ["reaction","reply"].includes(i.kind) && i.request_data != null)
       db.prepare("INSERT OR IGNORE INTO model_payloads(attempt_id,request_data) VALUES(?,?)").run(i.id,json(capturePayload(i.request_data)));
@@ -498,6 +499,23 @@ function execute(op, i) {
     return db
       .prepare("SELECT * FROM price_versions ORDER BY effective_at DESC")
       .all();
+  if (op === "estimateDeepseekHistory") {
+    // Only fill unpriced completed calls; never replace an existing snapshot or bill.
+    const attempts = db.prepare("SELECT * FROM provider_attempts WHERE provider='deepseek' AND model='deepseek-flash' AND status='completed' AND price_snapshot='[]' AND usage IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cost_items WHERE attempt_id=provider_attempts.id)").all();
+    db.exec("BEGIN");
+    try {
+      for (const a of attempts) {
+        const prices = deepseekPrices(a.provider,a.model,a.started_at,true);
+        db.prepare("UPDATE provider_attempts SET price_snapshot=? WHERE id=?").run(json(prices),a.id);
+        const usage = parse(a.usage);
+        for (const p of prices) if (usage[p.metric] != null)
+          db.prepare("INSERT INTO cost_items VALUES(?,?,?,?,?)").run(a.id,"estimated",p.currency,estimate(p.price,usage[p.metric],p.unit),p.metric);
+      }
+      audit("price.history_estimated", {count:attempts.length,version:"deepseek-public-2026-10-24"});
+      db.exec("COMMIT");
+    } catch(e) {db.exec("ROLLBACK");throw e;}
+    return {count:attempts.length};
+  }
   if (op === "savePrice") {
     for (const k of ["provider", "model", "metric"]) identifier(i[k]);
     if (!/^[A-Z]{3}$/.test(i.currency)) throw new Error("currency_format");

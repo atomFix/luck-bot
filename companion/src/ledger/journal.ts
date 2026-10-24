@@ -180,5 +180,11 @@ export function usageFrom(data: any) {
     const v = data?.[from!];
     if (Number.isSafeInteger(v) && v >= 0) usage[to!] = v;
   }
+  // OpenAI-compatible APIs may report cache hits only in nested details.
+  const cached = data?.prompt_tokens_details?.cached_tokens;
+  if (usage.cache_hit_tokens == null && Number.isSafeInteger(cached) && cached >= 0)
+    usage.cache_hit_tokens = cached;
+  if (usage.cache_miss_tokens == null && usage.input_tokens != null && usage.cache_hit_tokens != null && usage.cache_hit_tokens <= usage.input_tokens)
+    usage.cache_miss_tokens = usage.input_tokens - usage.cache_hit_tokens;
   return usage;
 }

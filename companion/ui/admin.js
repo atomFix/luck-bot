@@ -320,6 +320,16 @@
       ]),
     );
     host.append(requests);
+    host.append(node("h3", "Token 计费明细"), node("p", "输入已包含缓存命中和未命中；总 token 仅供统计，不会再次收费。本地快判没有模型调用，不产生模型 token。", "muted"));
+    for (const a of d.attempts.filter(a=>["reaction","reply"].includes(a.kind))) {
+      const box=node("details");box.append(node("summary",`${a.kind==="reaction"?"表情判断":"对话回复"} · ${a.actual_model??a.model} · ${costText(a.costs)}`));
+      for (const p of a.price_snapshot??[]) {
+        const c=a.costs.find(c=>c.kind==="estimated"&&c.metric===p.metric&&c.currency===p.currency);
+        box.append(node("p",`${label(p.metric)}：${a.usage?.[p.metric]??"未知"} × ${p.price} / ${p.unit} = ${c?c.amount:"未知"} ${p.currency}`),node("p",p.note??"手动价格版本","muted"));
+      }
+      if(!a.price_snapshot?.length)box.append(node("p","未配置价格，可到用量与费用补算。","muted"));
+      host.append(box);
+    }
     host.append(node("h3","大模型收发数据"),node("p","展示本次实际调用的消息与参数、模型返回数据。鉴权信息脱敏；过长数据标注截断。", "muted"));
     const modelCalls=d.attempts.filter(a=>["reaction","reply"].includes(a.kind));
     if(!modelCalls.length)host.append(node("p","本轮没有大模型调用记录（本地处理或已忽略）。", "muted"));
@@ -461,6 +471,10 @@
     void conversations().catch(fail);
   };
   $("usage-range").onchange = () => void usage().catch(fail);
+  $("estimate-history").onclick = async () => {
+    const button=$("estimate-history");button.disabled=true;
+    try {const r=await admin("estimateDeepseekHistory");api.notify(`已补算 ${r.count} 次请求，仅为当前官网价格追溯估算。`);await usage();} catch(e){fail(e);} finally{button.disabled=false;}
+  };
   $("price-form").onsubmit = async (e) => {
     e.preventDefault();
     const button = e.submitter;

@@ -126,5 +126,10 @@
     "Local Chinese ASR can misrecognize short phrases; conservative fallback remains enabled",
     "No new long-session, mixed-speaker or echo acceptance claims",
     "Choreography is applied to ambient eyes; voice chat shares persona but uses one main reaction"
-  ]
+  ],
+  "post_acceptance_capture": {
+    "observed": "device_timeout fault after acceptance",
+    "recovery": "Existing interrupt action restarted capture; connected=true,state=listening,streaming=true,error empty",
+    "root_cause": "Not isolated; no claim that timeout has been fixed"
+  }
 }

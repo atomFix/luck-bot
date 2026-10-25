@@ -46,7 +46,7 @@
   const date = (v) =>
     v == null ? "—" : new Date(v).toLocaleString("zh-CN", { hour12: false });
   const label = (v) => labels[v] ?? v ?? "—";
-  const reasonLabels={listening_started:"音频流已启动",gesture_firmware_update_required:"请先更新设备固件，以启用连续点头与摇头",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
+  const reasonLabels={ambient_input_timeout:"音频流超过 8 秒未收到数据，自动重启采音",listening_started:"音频流已启动",gesture_firmware_update_required:"请先更新设备固件，以启用连续点头与摇头",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
   const reasonText=code=>code?(reasonLabels[code]??`其他原因（${code}）`):"—";
 
   const today = () => {
@@ -406,14 +406,14 @@
     );
   }
   const speaker = (op, input = {}) => api.call("speaker", {op,input});
-  const speakerLabels={disabled:"后台已关闭",paused:"已暂停",starting:"启动中",listening:"持续聆听中",enrolling:"声纹录入中",fault:"需要处理",no_profiles:"请先录入声纹",unavailable:"组件不可用"};
+  const speakerLabels={disabled:"后台已关闭",paused:"已暂停",recovering:"正在自动恢复聆听",starting:"启动中",listening:"持续聆听中",enrolling:"声纹录入中",fault:"需要处理",no_profiles:"请先录入声纹",unavailable:"组件不可用"};
   let speakerLoading=false, speakerInitialized=false, profileSnapshot;
   async function speakers(){
     if(speakerLoading)return;speakerLoading=true;
     try{const value=await speaker("list");
       $("speaker-state").textContent=speakerLabels[value.state]??value.state;
       $("speaker-description").textContent=value.speaker_filter?"声纹筛选开启：已录入的人普通说话时只回应表情，说‘你好小智’或按 BOOT 才语音聊天。未匹配的声音在本地忽略。":"声纹筛选关闭：任何人的普通说话都可触发表情理解，说‘你好小智’或按 BOOT 才语音聊天。声纹档案保留。";
-      $("speaker-status").textContent=(value.speaker_filter?"仅接受已录入声纹":"声纹筛选关闭 · 接受所有说话人")+` · 本地模型：${value.model.ready?"已就绪":"待加载"} · 启用档案 ${value.profile_count} 人 · 本次检测 ${value.local_utterances} 句`+(value.error?" · "+value.error:"")+(value.last_event?" · 最近结果："+reasonText(value.last_event):"");
+      $("speaker-status").textContent=(value.speaker_filter?"仅接受已录入声纹":"声纹筛选关闭 · 接受所有说话人")+` · 本地模型：${value.model.ready?"已就绪":"待加载"} · 启用档案 ${value.profile_count} 人 · 本次检测 ${value.local_utterances} 句`+(value.error?" · "+value.error:"")+(value.recovery_count?` · 已自动恢复 ${value.recovery_count} 次`:"")+(value.last_turn_error?" · 最近单轮错误："+reasonText(value.last_turn_error):"")+(value.last_event?" · 最近结果："+reasonText(value.last_event):"");
       const diagnostics=$("listening-diagnostics"), input=value.input;
       if(input){
         const stage=({idle:"等待说话",listening:"正在听你说话",checking:"检查语音",recognizing:"正在识别",responding:"理解并反馈"})[value.work_stage]??value.work_stage;

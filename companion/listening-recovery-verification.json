@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-25",
+  "problem": "A failed ambient model response (provider_reaction_format) stopped the shared PCM stream indefinitely while the board remained connected.",
+  "changes": [
+    "Isolate failed utterances from continuous audio capture; retain failed turn records in SQLite.",
+    "Detect missing PCM for 8 seconds and restart transient audio/ASR faults with 1-30 second backoff.",
+    "Cancel recovery on user pause/disconnect; exclude enrollment, storage faults and critical device state from automatic retries.",
+    "Expose last_turn_error and recovery_count in local management UI."
+  ],
+  "tests": {
+    "typescript_passed": 187,
+    "typecheck": true,
+    "sqlite_failure_records": true,
+    "late_retry_cancellation": true,
+    "silent_pcm_does_not_restart": true,
+    "bundle_manifest": true,
+    "bundle_signature": true,
+    "bundled_sqlite": true,
+    "bundled_speaker_probe": true,
+    "bundled_asr_probe": true
+  },
+  "runtime": {
+    "observation_ms": 45038,
+    "received_frames": 2250,
+    "worst_frame_age_ms": 78,
+    "healthy": true,
+    "management_port": 4382,
+    "final_installed_controller_matches_build": true
+  },
+  "limits": [
+    "Short runtime observation; overnight stability and physical response to the next user utterance remain unverified."
+  ],
+  "secrets": {
+    "checked": 4,
+    "tracked_files_scanned": 287,
+    "leaks": 0
+  },
+  "firmware_changed": false
+}

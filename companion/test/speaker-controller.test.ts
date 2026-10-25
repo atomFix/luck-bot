@@ -1,5 +1,5 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {SpeakerController} from '../src/speaker/controller.js';import {AmbientSegmenter} from '../src/speaker/segmenter.js';
-function fixture(streaming?:any,journal?:any){let probability=.9,matched:any=null,calls=0;let people=[{id:'p',name:'owner',enabled:true}];let embed=async()=>[1,0];let matcher:(()=>Promise<any>)|undefined;const commands:any[]=[];const settings={speaker_filter:true,enabled:true,wait_seconds:20,silence_ms:1000,threshold:.7,margin:.08};let clock=10000;const device:any={info:{device_id:'d',boot_id:'b',mode:'companion',capabilities:['ambient_v1']},currentTurn:0,processingPose:async(active:boolean)=>{commands.push({thinking:active});},listen:async(enabled:boolean,purpose:string)=>{commands.push({enabled,purpose});},listenPose:async(listening:boolean)=>{commands.push({listening});}};const controller=new SpeakerController({now:()=>clock,journal,localAsr:streaming,useLocalAsr:()=>!!streaming,settings:()=>settings,saveSettings:async patch=>Object.assign(settings,patch),device:()=>device,profiles:{list:async()=>people,match:async()=>matcher?matcher():matched,add:async()=>({id:'p'}),remove:async()=>{},setEnabled:async()=>{}},extractor:{ready:async()=>{},embed:async()=>embed(),status:{ready:true,error:'',model:'fixture'}},canProcess:()=>true,expression:async(_pcm,_person,_signal,transcript)=>{calls++;if(streaming)streaming.received=transcript;},enrollmentScorer:()=>({score:async()=>.9}),segmenter:()=>new AmbientSegmenter(()=>({score:async()=>probability}))});let seq=0;return {controller,commands,setClock:(v:number)=>clock=v,setFilter:(enabled:boolean)=>settings.speaker_filter=enabled,setProbability:(p:number)=>probability=p,setMatch:(m:any)=>matched=m,calls:()=>calls,resetSeq:()=>{seq=0;},setProfiles:(p:typeof people)=>people=p,setMatcher:(fn:()=>Promise<any>)=>matcher=fn,setEmbed:(fn:()=>Promise<number[]>)=>embed=fn,frame:()=>({stream_id:99,frame_seq:seq++,turn_seq:0,end:false,sample_rate_khz:16 as const,pcm:new Uint8Array(640)})};}
+import test from 'node:test';import assert from 'node:assert/strict';import {AMBIENT_INPUT_TIMEOUT_MS,SpeakerController} from '../src/speaker/controller.js';import {AmbientSegmenter} from '../src/speaker/segmenter.js';
+function fixture(streaming?:any,journal?:any){let probability=.9,matched:any=null,calls=0;let expression:()=>Promise<void>=async()=>{};let canProcess=true;let people=[{id:'p',name:'owner',enabled:true}];let embed=async()=>[1,0];let matcher:(()=>Promise<any>)|undefined;const commands:any[]=[];const settings={speaker_filter:true,enabled:true,wait_seconds:20,silence_ms:1000,threshold:.7,margin:.08};let clock=10000;const device:any={info:{device_id:'d',boot_id:'b',mode:'companion',capabilities:['ambient_v1']},currentTurn:0,processingPose:async(active:boolean)=>{commands.push({thinking:active});},listen:async(enabled:boolean,purpose:string)=>{commands.push({enabled,purpose});},listenPose:async(listening:boolean)=>{commands.push({listening});}};const controller=new SpeakerController({now:()=>clock,journal,localAsr:streaming,useLocalAsr:()=>!!streaming,settings:()=>settings,saveSettings:async patch=>Object.assign(settings,patch),device:()=>device,profiles:{list:async()=>people,match:async()=>matcher?matcher():matched,add:async()=>({id:'p'}),remove:async()=>{},setEnabled:async()=>{}},extractor:{ready:async()=>{},embed:async()=>embed(),status:{ready:true,error:'',model:'fixture'}},canProcess:()=>canProcess,expression:async(_pcm,_person,_signal,transcript)=>{calls++;if(streaming)streaming.received=transcript;await expression();},enrollmentScorer:()=>({score:async()=>.9}),segmenter:()=>new AmbientSegmenter(()=>({score:async()=>probability}))});let seq=0;return {controller,commands,setExpression:(fn:()=>Promise<void>)=>expression=fn,setCanProcess:(value:boolean)=>canProcess=value,setClock:(v:number)=>clock=v,setFilter:(enabled:boolean)=>settings.speaker_filter=enabled,setProbability:(p:number)=>probability=p,setMatch:(m:any)=>matched=m,calls:()=>calls,resetSeq:()=>{seq=0;},setProfiles:(p:typeof people)=>people=p,setMatcher:(fn:()=>Promise<any>)=>matcher=fn,setEmbed:(fn:()=>Promise<number[]>)=>embed=fn,frame:()=>({stream_id:99,frame_seq:seq++,turn_seq:0,end:false,sample_rate_khz:16 as const,pcm:new Uint8Array(640)})};}
 test('unknown speech is locally ignored, then matched speech invokes only the expression callback',async()=>{const f=fixture();try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99,purpose:'ambient'});for(let n=0;n<90;n++)await f.controller.consume(f.frame());f.setProbability(.01);for(let n=0;n<60;n++)await f.controller.consume(f.frame());await f.controller.drain();assert.equal(f.calls(),0);assert.equal(f.controller.status.last_event,'speaker_unknown');f.setMatch({id:'p',name:'owner',score:.9});f.setProbability(.9);for(let n=0;n<90;n++)await f.controller.consume(f.frame());f.setProbability(.01);for(let n=0;n<60;n++)await f.controller.consume(f.frame());await f.controller.drain();assert.equal(f.calls(),1);assert(f.commands.some(c=>c.listening===true));}finally{await f.controller.pause();}});
 test('disabling background stops board, and no enrolled profile cannot enable a capture',async()=>{const f=fixture();await f.controller.resume();await f.controller.pause();assert(f.commands.some(c=>c.enabled===false));assert.equal(f.controller.status.streaming,false);});
 
@@ -28,6 +28,71 @@ test('short matched phrase below former 576ms gate is accepted when filtering is
 });
 
 async function phrase(f:ReturnType<typeof fixture>){f.setProbability(.9);for(let i=0;i<30;i++)await f.controller.consume(f.frame());f.setProbability(.01);for(let i=0;i<65;i++)await f.controller.consume(f.frame());await f.controller.drain();}
+test('invalid model response fails only its utterance and later speech still reacts on the same PCM stream',async()=>{
+ const f=fixture();f.setFilter(false);f.setExpression(async()=>{throw Error('provider_reaction_format');});
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});await phrase(f);
+  assert.equal(f.controller.status.state,'listening');assert.equal(f.controller.status.streaming,true);assert.equal(f.controller.status.last_turn_error,'provider_reaction_format');
+  assert(!f.commands.some(c=>c.enabled===false),'model failure must not stop board capture');
+  f.setExpression(async()=>{});f.setClock(11000);await phrase(f);assert.equal(f.calls(),2);assert.equal(f.controller.status.input.received_frames,190);
+ }finally{await f.controller.pause();}
+});
+test('failed semantic turns remain in SQLite and repeated provider failures cannot disable subsequent speech',async()=>{
+ const {Ledger}=await import('../src/ledger/repository.js');const {TurnJournal}=await import('../src/ledger/journal.js');
+ const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const {join}=await import('node:path');
+ const dir=await mkdtemp(join(tmpdir(),'ambient-recovery-'));const db=await Ledger.open(join(dir,'db'));const journal=new TurnJournal(db);const f=fixture(undefined,journal);f.setFilter(false);
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});
+  const errors=['provider_reaction_format','provider_reaction_empty','provider_timeout','local_asr_format'];
+  for(const [i,code]of errors.entries()){f.setClock(10000+i*1000);f.setExpression(async()=>{throw Error(code);});await phrase(f);assert.equal(f.controller.status.streaming,true);}
+  f.setClock(15000);f.setExpression(async()=>{});await phrase(f);
+  const rows=(await db.call('list',{})).items;assert.equal(rows.length,5);assert.equal(rows.filter((r:any)=>r.status==='failed').length,4);assert.equal(rows.filter((r:any)=>r.status==='completed').length,1);
+  for(const code of errors)assert(rows.some((r:any)=>r.error===code));assert.equal(f.calls(),5);assert(!f.commands.some(c=>c.enabled===false));
+ }finally{await f.controller.pause();await journal.close();await db.close();await rm(dir,{recursive:true,force:true});}
+});
+const settle=async()=>{for(let i=0;i<12;i++)await new Promise<void>(r=>setImmediate(r));};
+test('stalled PCM automatically restarts capture, but genuine silence frames keep it healthy',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=fixture();f.setFilter(false);f.setProbability(.01);
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});await f.controller.consume(f.frame());
+  f.setClock(10000+AMBIENT_INPUT_TIMEOUT_MS);t.mock.timers.tick(2000);await settle();
+  assert.equal(f.controller.status.state,'recovering');assert.equal(f.controller.status.recovery_count,1);assert(f.commands.some(c=>c.enabled===false));
+  t.mock.timers.tick(1000);await settle();assert.equal(f.commands.filter(c=>c.enabled===true).length,2);
+  f.controller.event({type:'ambient.start',stream_id:100});f.resetSeq();
+  for(let i=0;i<8;i++){f.setClock(20000+i*2000);await f.controller.consume({...f.frame(),stream_id:100});t.mock.timers.tick(2000);await settle();}
+  assert.equal(f.controller.status.state,'listening');assert.equal(f.controller.status.recovery_count,1);
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
+test('user pause cancels pending automatic recovery and busy owners defer recovery until free',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=fixture();f.setFilter(false);
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});f.setClock(18000);t.mock.timers.tick(2000);await settle();
+  f.setCanProcess(false);t.mock.timers.tick(1000);await settle();assert.equal(f.commands.filter(c=>c.enabled===true).length,1);
+  f.setCanProcess(true);t.mock.timers.tick(1000);await settle();assert.equal(f.commands.filter(c=>c.enabled===true).length,2);
+  f.controller.event({type:'ambient.start',stream_id:100});f.setClock(26000);t.mock.timers.tick(2000);await settle();assert.equal(f.controller.status.state,'recovering');
+  await f.controller.pause();const n=f.commands.length;t.mock.timers.tick(60000);await settle();assert.equal(f.commands.length,n);assert.equal(f.controller.status.state,'paused');
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
+test('a storage failure remains visible and does not retry capture or cloud work',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=fixture();f.setFilter(false);f.setExpression(async()=>{throw Error('storage_unavailable');});
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});await phrase(f);await settle();
+  assert.equal(f.controller.status.state,'fault');assert.equal(f.controller.status.error,'storage_unavailable');const n=f.commands.length;
+  t.mock.timers.tick(60000);await settle();assert.equal(f.commands.length,n);assert.equal(f.calls(),1);
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
+test('a broken enrollment stream requires another explicit enrollment instead of enabling ambient capture',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=fixture();
+ try{await f.controller.startEnrollment('owner',false);f.controller.event({type:'ambient.start',stream_id:99,purpose:'enroll'});
+  await f.controller.consume({...f.frame(),frame_seq:10});await settle();assert.equal(f.controller.status.state,'fault');
+  const n=f.commands.length;t.mock.timers.tick(60000);await settle();assert.equal(f.commands.length,n);assert.equal(f.calls(),0);
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
+test('late model-load failure from an automatic retry cannot revive capture after a user pause',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let reject!:(error:Error)=>void;
+ const local={ready:async()=>{},start:async()=>1,push:async()=>{},finish:async()=>({text:'',model:'fixture',cpu_ms:0,finalize_ms:0}),cancel:()=>{}};
+ const f=fixture(local);f.setFilter(false);
+ try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});f.setClock(18000);t.mock.timers.tick(2000);await settle();
+  local.ready=()=>new Promise<void>((_resolve,fail)=>{reject=fail;});t.mock.timers.tick(1000);await settle();assert(reject);
+  await f.controller.pause();reject(Error('local_asr_unavailable'));await settle();const n=f.commands.length;
+  t.mock.timers.tick(60000);await settle();assert.equal(f.controller.status.state,'paused');assert.equal(f.commands.length,n);
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
 test('ambient rate gate accepts a second utterance at 500ms and resets its minute budget',async()=>{
  const f=fixture();f.setFilter(false);try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});
  await phrase(f);assert.equal(f.calls(),1);f.setClock(10499);await phrase(f);assert.equal(f.calls(),1);assert.equal(f.controller.status.last_event,'ambient_rate_limited');

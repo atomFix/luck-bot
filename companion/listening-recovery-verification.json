@@ -1,18 +1,24 @@
 {
   "date": "2026-10-25",
-  "problem": "A failed ambient model response (provider_reaction_format) stopped the shared PCM stream indefinitely while the board remained connected.",
+  "problem": "Firmware reports ambient.stopped/overflow followed by error/overflow. The application-wide error handler cancelled the controller recovery timer, leaving an online device permanently paused.",
+  "previous_issue": "Per-utterance provider_reaction_format failure isolation remains enabled.",
   "changes": [
-    "Isolate failed utterances from continuous audio capture; retain failed turn records in SQLite.",
-    "Detect missing PCM for 8 seconds and restart transient audio/ASR faults with 1-30 second backoff.",
-    "Cancel recovery on user pause/disconnect; exclude enrollment, storage faults and critical device state from automatic retries.",
-    "Expose last_turn_error and recovery_count in local management UI."
+    "Treat the paired board notifications as one ambient failure; preserve the existing recovery task.",
+    "Standalone board overflow cancels stale work and resumes enabled background listening; late cleanup and released-connection events cannot revive capture.",
+    "Wait for interrupted owner work to finish before a scheduled background resume.",
+    "Direct hearing questions now select the continuous agree/nod gesture locally on their first utterance; quoted, conditional and complex understanding questions defer."
   ],
   "tests": {
-    "typescript_passed": 187,
+    "typescript_passed": 194,
+    "test_concurrency": 2,
     "typecheck": true,
-    "sqlite_failure_records": true,
-    "late_retry_cancellation": true,
-    "silent_pcm_does_not_restart": true,
+    "regression_reproduced_before_fix": [
+      "paired_overflow_cancels_recovery",
+      "standalone_overflow_never_resumes"
+    ],
+    "repeated_overflow_cycles": 3,
+    "disconnect_and_critical_guards": true,
+    "first_hearing_question_local_nod": true,
     "bundle_manifest": true,
     "bundle_signature": true,
     "bundled_sqlite": true,
@@ -20,19 +26,74 @@
     "bundled_asr_probe": true
   },
   "runtime": {
-    "observation_ms": 45038,
-    "received_frames": 2250,
-    "worst_frame_age_ms": 78,
-    "healthy": true,
-    "management_port": 4382,
-    "final_installed_controller_matches_build": true
+    "real_host_stall": {
+      "passed": true,
+      "suspended_ms": 6000,
+      "initial": {
+        "connected": true,
+        "state": "listening",
+        "streaming": true,
+        "frames": 1020,
+        "age_ms": 35,
+        "recovery_count": 0,
+        "error": "",
+        "last_error": ""
+      },
+      "final": {
+        "connected": true,
+        "state": "listening",
+        "streaming": true,
+        "frames": 387,
+        "age_ms": 6,
+        "recovery_count": 1,
+        "error": "",
+        "last_error": "",
+        "elapsed_ms": 9043
+      }
+    },
+    "deployed_hearing_question": {
+      "passed": true,
+      "method": "Installed semantic route -> paired physical board acknowledgement; excludes acoustic ASR acceptance",
+      "status": "completed",
+      "error": null,
+      "scene": "agree",
+      "gesture": "nod",
+      "duration_ms": 4200,
+      "provider_calls": 0,
+      "source": "context",
+      "final": {
+        "connected": true,
+        "state": "listening",
+        "streaming": true,
+        "frames": 36,
+        "error": ""
+      }
+    },
+    "acoustic_attempt": {
+      "passed": false,
+      "method": "Mac Tingting speech -> physical ESP32 microphone -> local ASR -> nod animation ACK",
+      "elapsed_ms": 0,
+      "final": {
+        "connected": true,
+        "state": "listening",
+        "streaming": true,
+        "error": ""
+      }
+    },
+    "installed_code_matches_build": true,
+    "management_port": 4382
+  },
+  "acceptance": {
+    "user_confirmed_voice_heard_and_explicit_nod": true,
+    "new_implicit_hearing_question_visual_acceptance": false
   },
   "limits": [
-    "Short runtime observation; overnight stability and physical response to the next user utterance remain unverified."
+    "Overnight stability remains unverified.",
+    "Mac synthetic speech did not yield a matching completed ASR record; it is not counted as acoustic acceptance. Deployed first-question nod verified through semantic input and physical board acknowledgement."
   ],
   "secrets": {
-    "checked": 4,
-    "tracked_files_scanned": 287,
+    "secrets_checked": 4,
+    "files_checked": 288,
     "leaks": 0
   },
   "firmware_changed": false

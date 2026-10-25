@@ -74,6 +74,15 @@ test('ambient expression uses requested gestures locally and lets the brain judg
  assert.deepEqual(modelInputs,['一加一等于三，你觉得对么？']);assert.deepEqual(sent.map(plan=>opinionGesture(plan)),['agree','disagree']);
  assert(sent.every(plan=>plan.steps.reduce((n:number,s:any)=>n+s.duration_ms,0)===4200));
 });
+test('a direct hearing check nods on the first utterance without a second command or model request',async()=>{
+ const sent:any[]=[];const p=new VoicePipeline({animations:true,brain:{animation:async()=>{throw Error('a hearing check must be confirmed locally');}},device:{animate:async(plan:any)=>{sent.push(plan);return {command_id:'a',applied_uptime_ms:0};},cancel:async()=>{}},asr:{},tts:{},output:{cancel:async()=>{}}}as any);
+ for(const [i,text]of ['你现在能听到我说话吗？','可以听到我说话么','你听得见吗','你能不能听见我讲话','你有没有在听我说话','你现在能听到我说什么东西吗？'].entries()){
+  await p.expression(new Uint8Array(),i+1,'owner',undefined,{text,fast:false});assert.equal(opinionGesture(sent.at(-1)),'agree',text);
+ }
+ assert.equal(sent.length,6,'each hearing check immediately sends its own visible nod');
+ const {conversationalAnimation}=await import('../src/voice/animation.js');
+ for(const text of ['他说你能听到我说话吗','“你听得到吗”','如果你听到我说话会怎样','我听不到你说话','你能理解我说话的意思吗','你听不到我说话吗'])assert.equal(conversationalAnimation(text),null,text);
+});
 
 test('spoken chat and agent semantic text can animate opinions while retaining their reply path',async()=>{
  const sent:any[]=[];let modelCalls=0;

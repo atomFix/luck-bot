@@ -35,12 +35,20 @@ export class Companion {
  private agentBusy(){return !!this.speaker?.busy||!!this.voice||this.activeVoice>0||!!this.pipelinePromise||performance.now()<this.manualUntil;}
  private attachDevice(c:DeviceConnection,record:PairingRecord){this.connection=c;
     c.on('disconnected',()=>{if(this.connection===c){this.connection=undefined;void this.resetServices();this.manualUntil=0;if(this.desired===record.device_id)this.scheduleReconnect(record);}});
-    c.on('event',msg=>{this.speaker?.event(msg);if(msg.type==='utterance.start'){if(this.speaker?.enrolling){void this.cancelWork(true);this.problem(new Error('enrollment_interrupted_by_wake'));return;}this.lastError='';this.diagnose({event:'capture.started',turn:msg.turn_seq});void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer(),endpoint:this.endpointFactory?.()??new SpeechEndpoint(undefined,{noSpeechTimeoutMs:this.config.ambient.wait_seconds*1000,silenceMs:this.config.ambient.silence_ms,maxSpeechMs:29500}),work:Promise.resolve(),pending:0,began:performance.now(),record:this.journal?.create({mode:'voice',device_id:c.info.device_id,boot_id:c.info.boot_id,session_id:(c.info as any).session_id,device_turn:msg.turn_seq})};const voice=this.voice;void voice.record?.then(id=>this.journal?.event({event:'capture.started',turn:voice.turn},id)).catch(error=>this.captureProblem(voice,error));}
+    c.on('event',msg=>{if(this.connection!==c)return;const enrolling=this.speaker?.enrolling;const backgroundHandled=this.speaker?.event(msg)===true;if(msg.type==='ambient.start'&&this.lastError==='overflow'){this.lastError='';this.diagnose({event:'listening.recovered',code:'overflow'});}if(msg.type==='utterance.start'){if(this.speaker?.enrolling){void this.cancelWork(true);this.problem(new Error('enrollment_interrupted_by_wake'));return;}this.lastError='';this.diagnose({event:'capture.started',turn:msg.turn_seq});void this.cancelWork(false);this.voice={turn:msg.turn_seq,buffer:new UtteranceBuffer(),endpoint:this.endpointFactory?.()??new SpeechEndpoint(undefined,{noSpeechTimeoutMs:this.config.ambient.wait_seconds*1000,silenceMs:this.config.ambient.silence_ms,maxSpeechMs:29500}),work:Promise.resolve(),pending:0,began:performance.now(),record:this.journal?.create({mode:'voice',device_id:c.info.device_id,boot_id:c.info.boot_id,session_id:(c.info as any).session_id,device_turn:msg.turn_seq})};const voice=this.voice;void voice.record?.then(id=>this.journal?.event({event:'capture.started',turn:voice.turn},id)).catch(error=>this.captureProblem(voice,error));}
      if(msg.type==='utterance.end'&&this.voice&&this.voice.turn===msg.turn_seq){const voice=this.voice;voice.work=voice.work.then(()=>this.finishVoice(voice,c,false)).catch(error=>this.captureProblem(voice,error));}
-     if(msg.type==='error'&&!msg.command_id){void this.cancelWork(true);this.problem(new Error(msg.code));}
+     if(msg.type==='error'&&!msg.command_id){
+      if(!backgroundHandled){
+       const pending=this.cancelWork(true),epoch=this.epoch;
+       void pending.then(()=>{
+        if(epoch===this.epoch&&this.connection===c&&!enrolling&&msg.code==='overflow'&&!c.info.critical&&c.info.mode==='companion')this.resumeBackground(1000);
+       });
+      }
+      this.problem(new Error(msg.code));
+     }
      if(msg.type==='playback.started')this.diagnose({event:'playback.started',turn:msg.turn_seq});
     });
-    c.on('audio',frame=>{if(frame.turn_seq===0){void this.speaker?.consume(frame);return;}const voice=this.voice;if(!voice||frame.turn_seq!==voice.turn)return;
+    c.on('audio',frame=>{if(this.connection!==c)return;if(frame.turn_seq===0){void this.speaker?.consume(frame);return;}const voice=this.voice;if(!voice||frame.turn_seq!==voice.turn)return;
      try{if(++voice.pending>50)throw new Error('overflow');
       voice.work=voice.work.then(async()=>{if(this.voice!==voice||this.connection!==c)return;
        voice.buffer.push(frame);const wasSpeaking=voice.endpoint.hasSpeech;const ended=await voice.endpoint.push(frame.pcm);if(!wasSpeaking&&voice.endpoint.hasSpeech&&c.info.capabilities?.includes('ambient_v1'))await c.listenPose(true);if(voice.endpoint.hasSpeech===false)voice.buffer.retainTail(16000);if(ended&&this.voice===voice)await this.finishVoice(voice,c,true);

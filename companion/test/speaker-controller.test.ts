@@ -93,6 +93,13 @@ test('late model-load failure from an automatic retry cannot revive capture afte
   t.mock.timers.tick(60000);await settle();assert.equal(f.controller.status.state,'paused');assert.equal(f.commands.length,n);
  }finally{await f.controller.pause();t.mock.timers.reset();}
 });
+test('a requested background resume waits for cancelled owner work to finish instead of silently remaining paused',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=fixture();f.setFilter(false);
+ try{await f.controller.pause();f.setCanProcess(false);await f.controller.resume(1000);t.mock.timers.tick(1000);await settle();
+  assert(!f.commands.some(c=>c.enabled===true));f.setCanProcess(true);t.mock.timers.tick(1000);await settle();
+  assert.equal(f.commands.filter(c=>c.enabled===true).length,1);
+ }finally{await f.controller.pause();t.mock.timers.reset();}
+});
 test('ambient rate gate accepts a second utterance at 500ms and resets its minute budget',async()=>{
  const f=fixture();f.setFilter(false);try{await f.controller.resume();f.controller.event({type:'ambient.start',stream_id:99});
  await phrase(f);assert.equal(f.calls(),1);f.setClock(10499);await phrase(f);assert.equal(f.calls(),1);assert.equal(f.controller.status.last_event,'ambient_rate_limited');

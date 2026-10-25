@@ -46,7 +46,7 @@
   const date = (v) =>
     v == null ? "—" : new Date(v).toLocaleString("zh-CN", { hour12: false });
   const label = (v) => labels[v] ?? v ?? "—";
-  const reasonLabels={ambient_input_timeout:"音频流超过 8 秒未收到数据，自动重启采音",listening_started:"音频流已启动",gesture_firmware_update_required:"请先更新设备固件，以启用连续点头与摇头",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
+  const reasonLabels={overflow:"音频发送或处理队列溢出",ambient_input_timeout:"音频流超过 8 秒未收到数据，自动重启采音",listening_started:"音频流已启动",gesture_firmware_update_required:"请先更新设备固件，以启用连续点头与摇头",provider_reaction_empty:"模型返回空白表情（重试后仍失败）",provider_reaction_format:"模型表情格式无效（重试后仍失败）",speaker_audio_short:"有效人声过短",speaker_unknown:"声纹未通过匹配",ambient_rate_limited:"回应频率限制（两次至少间隔 0.5 秒，每分钟最多 60 轮）",owner_busy:"设备正在处理其他互动",candidate_superseded:"已优先处理较新的语音",utterance_too_long:"连续说话超过时长上限",no_speech:"等待期间未检测到有效人声",device_timeout:"等待设备确认超时",audio_gap:"音频帧中断",cancelled:"互动已取消",speaker_filter_off:"声纹筛选关闭，接受所有说话人",speaker_matched:"声纹匹配通过",speaker_enroll_first:"开启声纹筛选前请先录入声纹"};
   const reasonText=code=>code?(reasonLabels[code]??`其他原因（${code}）`):"—";
 
   const today = () => {

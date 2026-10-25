@@ -86,8 +86,8 @@ export function conversationalAnimation(text:string,current?:string,lastEmotion?
   const emotion=EMOTIONS.find(e=>e===current)??'neutral';
   return AnimationSchema.parse({scene:'acknowledge',steps:[step(emotion,3000,{blink_once:true,transition_ms:650})]});
  }
- if(/^(?:你)?(?:现在)?(?:还)?(?:能|可以)?听(?:到|见|清)(?:我)?(?:说话|讲话|说什么|说什么东西)?(?:吗|么|了|了吗)?$/.test(t))
-  return AnimationSchema.parse({scene:'acknowledge',steps:[step('neutral',3000,{blink_once:true,scale:1.12,look_y:-.3,transition_ms:650})]});
+ if(/^(?:你)?(?:现在|刚才)?(?:还)?(?:能不能|可不可以|有没有|能|可以)?听(?:得)?(?:到|见|清楚|清)(?:我)?(?:的声音|说话|讲话|说什么|说什么东西)?(?:吗|么|嘛|呢|了|了吗)?$/.test(t)||/^(?:你)?(?:现在)?(?:有没有在|有在|在)听(?:我)?(?:说话|讲话)?(?:吗|么|呢)?$/.test(t))
+  return parseAnimationChoice({preset:'agree'});
  if(/^(?:你)?(?:先|再)?(?:别|不要)(?:老是|一直|总是)?笑(?:了)?$/.test(t)||/^(?:你|你们)?(?:怎么|是不是)?(?:又|都|总是|一直)?(?:乱回|没听懂|听不懂|理解错了)(?:了|啊|呀|我的意思)?$/.test(t)||/^(?:我刚才说的不是这个意思|不是这个意思|别乱回了|你别乱笑|认真听我说)$/.test(t))
   return AnimationSchema.parse({scene:'repair',steps:[step('thinking',4000,{scale:1,look_x:0,blink:.6,transition_ms:800})]});
  return null;

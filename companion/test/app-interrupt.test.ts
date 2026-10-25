@@ -35,6 +35,47 @@ test('a real captured no-speech turn is persisted even without provider initiali
 });
 
 const speakerFixture=()=>({profiles:{list:async()=>[{id:'person',name:'本人',enabled:true}],match:async()=>null,add:async()=>({id:'person'}),remove:async()=>{},setEnabled:async()=>{}},extractor:{ready:async()=>{},embed:async()=>[1,0],close:async()=>{},status:{ready:true,error:'',model:'fixture'}}});
+const flush=async()=>{for(let i=0;i<15;i++)await new Promise<void>(r=>setImmediate(r));};
+async function ambientFixture(){const f=await fixture(async()=>null,undefined,undefined,speakerFixture());(f.app as any).config.ambient.enabled=true;(f.app as any).config.performance.local_asr=false;await (f.app as any).speaker.resume();f.wire.event({type:'ambient.start',stream_id:99});return f;}
+test('paired ambient stop and board overflow error cannot cancel automatic recovery, including repeated incidents',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=await ambientFixture();
+ try{for(let i=0;i<3;i++){
+  const before=f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length;
+  f.wire.event({type:'ambient.stopped',code:'overflow'});f.wire.event({type:'error',code:'overflow',command_id:''});await flush();
+  t.mock.timers.tick(1000);await flush();assert.equal(f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length,before+1);
+  const stream_id=100+i;f.wire.event({type:'ambient.start',stream_id});f.wire.emit('message',encodeAudio({stream_id,frame_seq:0,turn_seq:0,end:false,sample_rate_khz:16,pcm:new Uint8Array(640)}),true);await flush();
+  const state=await f.app.state();assert('input' in state.speaker);assert.equal(state.speaker.state,'listening');assert.equal(state.speaker.input.received_frames,1);assert.equal(state.speaker.recovery_count,i+1);assert.equal(state.lastError,'');assert(state.events.some((e:any)=>e.event==='listening.recovered'));
+ }}finally{await f.cleanup();t.mock.timers.reset();}
+});
+test('a standalone device overflow invalidates work and resumes enabled background listening',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=await ambientFixture();
+ try{const before=f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length;
+  f.wire.event({type:'error',code:'overflow',command_id:''});await flush();t.mock.timers.tick(1000);await flush();
+  assert.equal(f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length,before+1);
+  f.wire.event({type:'ambient.start',stream_id:100});assert.equal((await f.app.state()).speaker.state,'listening');
+ }finally{await f.cleanup();t.mock.timers.reset();}
+});
+test('disconnect during board-error cleanup prevents any automatic restart',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=await ambientFixture();
+ try{f.wire.event({type:'error',code:'overflow',command_id:''});await f.app.disconnect();await flush();const n=f.wire.commands.length;
+  t.mock.timers.tick(60000);await flush();assert.equal(f.wire.commands.length,n);assert.equal((await f.app.state()).connected,false);
+ }finally{await f.cleanup();t.mock.timers.reset();}
+});
+test('critical device errors and disabled background settings cannot restart listening',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=await ambientFixture();
+ try{let before=f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length;
+  f.wire.event({type:'ambient.stopped',code:'critical'});f.wire.event({type:'error',code:'critical',command_id:''});await flush();t.mock.timers.tick(60000);await flush();
+  assert.equal(f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length,before);
+  (f.app as any).config.ambient.enabled=false;f.wire.event({type:'error',code:'overflow',command_id:''});await flush();t.mock.timers.tick(60000);await flush();
+  assert.equal(f.wire.commands.filter(c=>c.type==='listen'&&c.payload.enabled).length,before);
+ }finally{await f.cleanup();t.mock.timers.reset();}
+});
+test('events from a released connection cannot cancel work or resurrect listening',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const f=await ambientFixture();
+ try{await f.app.disconnect();const before=f.wire.commands.length;f.wire.event({type:'ambient.stopped',code:'overflow'});f.wire.event({type:'error',code:'overflow',command_id:''});await flush();t.mock.timers.tick(60000);await flush();
+  assert.equal(f.wire.commands.length,before);assert.equal((await f.app.state()).lastError,'');
+ }finally{await f.cleanup();t.mock.timers.reset();}
+});
 test('unknown awakened voice is recorded ignored and never initializes a provider',async()=>{const dir=await mkdtemp(join(tmpdir(),'speaker-voice-ledger-'));const db=await Ledger.open(join(dir,'db'));const journal=new TurnJournal(db);let reads=0;const f=await fixture(async()=>{reads++;return null;},()=>({push:async()=>true}),journal,speakerFixture());try{await db.call('privacy',{record_audio:true});await f.app.speakerAction('settings',{speaker_filter:true});f.wire.event({type:'utterance.start',turn_seq:1});f.wire.emit('message',encodeAudio({stream_id:1,frame_seq:0,turn_seq:1,end:false,sample_rate_khz:16,pcm:new Uint8Array(640)}),true);let records:any;for(let n=0;n<30;n++){await new Promise(r=>setTimeout(r,10));records=await db.call('list',{});if(records.items[0]?.status==='ignored')break;}assert.equal(reads,0);assert.equal(records.items[0].status,'ignored');assert.equal(records.items[0].error,'speaker_unknown');const detail=await db.call('detail',{id:records.items[0].id});assert.equal(detail.attempts.length,0);assert.equal(detail.audio.bytes,640);}finally{await f.cleanup();await journal.close();await db.close();await rm(dir,{recursive:true,force:true});}});
 test('wake during enrollment cancels recording without sending enrollment speech to cloud',async()=>{let reads=0;const f=await fixture(async()=>{reads++;return null;},undefined,undefined,speakerFixture());try{await f.app.speakerAction('enroll-start',{name:'本人',enable_after:false});f.wire.event({type:'ambient.start',stream_id:99});f.wire.event({type:'utterance.start',turn_seq:1});f.wire.event({type:'utterance.end',turn_seq:1});await new Promise(r=>setImmediate(r));assert.equal(reads,0);assert.equal((await f.app.state()).lastError,'enrollment_interrupted_by_wake');assert.equal((await f.app.state()).speaker.enrollment,null);}finally{await f.cleanup();}});
 

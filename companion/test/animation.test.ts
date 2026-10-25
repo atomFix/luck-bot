@@ -35,7 +35,7 @@ test('automatic animation pacing leaves a readable hold and stays within the 30 
 
 test('criticism and hearing checks have grounded acknowledgements and no playful detours',async()=>{
  const {conversationalAnimation,socialAnimation}=await import('../src/voice/animation.js');
- for(const text of ['你乱回啊','你现在能听到我说什么东西吗？','我刚才说的不是这个意思']){
+ for(const text of ['你乱回啊','我刚才说的不是这个意思']){
   const plan=conversationalAnimation(text);assert(plan);assert(plan.steps.every(s=>['thinking','neutral'].includes(s.emotion)),text);
  }
  assert.equal(conversationalAnimation('你现在什么表情？','loving')!.steps[0]!.emotion,'loving');
@@ -58,7 +58,7 @@ test('hearing checks and explicit change requests have an immediate visible resp
  const sent:any[]=[];let modelCalls=0;
  const p=new VoicePipeline({animations:true,brain:{animation:async()=>{modelCalls++;throw Error('simple feedback must remain local');}},device:{animate:async(plan:any)=>{sent.push(plan);return {command_id:'a',applied_uptime_ms:0};},cancel:async()=>{}},asr:{},tts:{},output:{cancel:async()=>{}}}as any);
  for(const [i,text] of ['呃，你现在还能听到我说话吗？','换一个其他表情。','再换一个。','呃，你先别笑。','嗯。'].entries())await p.expression(new Uint8Array(),i+1,'owner',undefined,{text,fast:false});
- assert.equal(modelCalls,0);assert.equal(sent[0].steps[0].blink_once,true);assert(sent[0].steps[0].scale>1);
+ assert.equal(modelCalls,0);assert.equal(sent[0].scene,'agree');assert.equal(sent[0].steps[0].gesture,'nod');
  assert.equal(sent[1].steps.length,1);assert.equal(sent[2].steps.length,1);assert.notEqual(sent[1].steps[0].emotion,sent[2].steps[0].emotion);assert.notEqual(sent[1].steps[0].emotion,'neutral');
  assert.equal(sent[3].steps[0].emotion,'thinking');assert.equal(sent[4].steps[0].emotion,'thinking');
 });
